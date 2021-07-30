@@ -1,7 +1,8 @@
 from ls import tg_ls
 import vk_api
+import traveling_days
 from secret_chat import ls_group, config, test_group
-from asyncio import run
+from asyncio import run, create_task
 from aiogram import Dispatcher, Bot
 from aiogram.types import BotCommand
 
@@ -40,6 +41,7 @@ def register():
 
 async def main():
     register()
+    create_task(traveling_days.now_playing_checker(bot, 5))
     await on_startup()
     try:
         await dp.skip_updates()
