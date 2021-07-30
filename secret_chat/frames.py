@@ -20,8 +20,8 @@ class Frames:
             json.dump(self._frames_storage, f, ensure_ascii=False, )
 
     def save_frame(self, frame: int):
-        value = self._frames_storage.get(str(frame), 0)
-        self._frames_storage[str(frame)] = value + 1
+        value = self._frames_storage['frames'].get(str(frame), 0)
+        self._frames_storage['frames'][str(frame)] = value + 1
         self.save_frames()
 
     def get_nicest_frame(self) -> tuple[list, int]:
