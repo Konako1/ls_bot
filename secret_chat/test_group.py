@@ -1,4 +1,4 @@
-from aiogram import Dispatcher
+from aiogram import Dispatcher, Bot
 from aiogram.types import Message, InputFile, MediaGroup
 
 from secret_chat.config import ls_group_id, test_group_id, frames_dir
@@ -13,6 +13,10 @@ async def say_to_ls(message: Message):
 
     if args.startswith('/message'):
         await message.bot.send_message(ls_group_id, text=args.removeprefix('/message '))
+
+
+async def message_sender(text_to_print: str, chat_id: int, bot: Bot):
+    await bot.send_message(text=text_to_print, chat_id=chat_id, disable_web_page_preview=True)
 
 
 async def add_paste(message: Message):
