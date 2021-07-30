@@ -250,8 +250,10 @@ async def bear(message: Message):
 
 
 async def minus_chel(message: Message):
-    calls.golub_was_found()
-    await message.reply('Помянем.')
+    text = message.text.lower()
+    if 'сдох' in text or 'минус' in text:
+        await message.reply('Помянем.')
+        calls.golub_was_found()
 
 
 async def get_graves_count(message: Message):
@@ -319,29 +321,6 @@ async def get_anek(message: Message):
     print(f'анек номер {offset}')
 
 
-async def commands(_):
-    bot = Bot.get_current()
-
-    text = f'Список комманд:\n' \
-           f'/кто - Команда которая преобразует введенное место и время в опрос. /format for more.\n' \
-           f'/all - Пинг всех участников конфы.\n' \
-           f'/tmn - Пинг всех участников из Тюмени.\n' \
-           f'/gamers - Пинг GAYмеров.\n' \
-           f'/pasta - Рандомная паста.\n' \
-           f'/say - Бесполезная матеша.\n' \
-           f'/graveyard - Количество голубей на кладбище.\n' \
-           f'/update_top1 [nickname] [ss.sss] - Обновляет рекорд на Spring 05.\n' \
-           f'/get_top1 - Возвращает топ 1 на Spring 05.\n' \
-           f'Фичи:\n' \
-           f'Словосочетания "голубь сдох" или "минус голубь" добавят одного голубя на кладбище.\n' \
-           f'С некоторым шансом бот может кинуть медведя во время спама медведей.'
-
-    await bot.send_message(
-        text=text,
-        chat_id=ls_group_id
-    )
-
-
 async def kto_format(message: Message):
     text = f'/кто - [округленное_время]. Борщ. Кто.\n' \
            f'/кто [время] - [время]. Борщ. Кто.\n' \
@@ -371,8 +350,7 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(say, commands=['say'])
     dp.register_message_handler(kto_format, commands=['format'])
     dp.register_message_handler(bear, content_types=ContentTypes.STICKER)
-    dp.register_message_handler(minus_chel, Text(contains='минус голубь', ignore_case=True))
-    dp.register_message_handler(minus_chel, Text(contains='голубь сдох', ignore_case=True))
+    dp.register_message_handler(minus_chel, Text(contains='голубь', ignore_case=True))
     dp.register_message_handler(get_graves_count, commands=['graveyard'])
     dp.register_message_handler(get_number_one_on_spring_05, commands=['get_top1'])
     dp.register_message_handler(set_number_one_on_spring_05, commands=['update_top1'])
