@@ -38,13 +38,15 @@ async def nice_ava_checker(text: list[str]) -> bool:
 async def nice_pfp(message: Message):
     calls = Calls()
     frames = Frames()
-    text = message.text.lower().split(' ')
+    text = re.split(r'[,.;:\s]', message.text.lower())
+    print(text)
+
     if not await nice_ava_checker(text):
         return
 
     date_time = frames.get_datetime()
     msg_date = message.date
-    if msg_date.hour == date_time.hour:
+    if msg_date.hour == date_time.hour and msg_date.day == date_time.day:
         await message.reply("Сказать что ава моего хозяина ахуенная (или нет) можно всего раз в час.")
         return
 
@@ -54,12 +56,12 @@ async def nice_pfp(message: Message):
         await message.bot.send_message(ls_group_id, ':(')
         return False
 
+    await message.bot.send_message(ls_group_id, 'спс')
+
     calls.nice_pfp_sayed()
     info = await message.bot.get_chat(users['konako'])
     frame = info.bio.rsplit(" ", maxsplit=1)[1]
     frames.save_frame(int(frame))
-
-    await message.bot.send_message(ls_group_id, 'спс')
 
 
 async def test(message: Message):
@@ -169,6 +171,26 @@ async def gamers(message: Message):
     )
 
 
+async def commands(message: Message):
+    text = f'Список комманд:\n' \
+           f'/кто - Команда которая преобразует введенное место и время в опрос. /format for more.\n' \
+           f'/all - Пинг всех участников конфы.\n' \
+           f'/tmn - Пинг всех участников из Тюмени.\n' \
+           f'/gamers - Пинг GAYмеров.\n' \
+           f'/pasta - Рандомная паста.\n' \
+           f'/say - Бесполезная матеша.\n' \
+           f'/graveyard - Количество голубей на кладбище.\n' \
+           f'/update_top1 [nickname] [ss.sss] - Обновляет рекорд на Spring 05.\n' \
+           f'/get_top1 - Возвращает топ 1 на Spring 05.\n' \
+           f'Фичи:\n' \
+           f'Словосочетания "голубь сдох" или "минус голубь" добавят одного голубя на кладбище.\n' \
+           f'С некоторым шансом бот может кинуть медведя во время спама медведей.'
+
+    await message.answer(
+        text=text,
+    )
+
+
 # TODO: add hpb to schedule
 # async def happy_birthday(_):
 # aps.add_job()
@@ -185,3 +207,4 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(nice_pfp, Text(contains='ава', ignore_case=True), chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, Text(contains='ava', ignore_case=True), chat_id=ls_group_id)
     dp.register_message_handler(test, user_id=users['acoola'], chat_id=ls_group_id)
+    dp.register_message_handler(commands, commands=['commands'], chat_id=ls_group_id)
