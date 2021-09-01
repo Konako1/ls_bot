@@ -5,7 +5,7 @@ from secret_chat.config import ls_group_id, test_group_id, frames_dir
 from secret_chat.simple_math import Calls
 from secret_chat.frames import Frames
 from secret_chat.paste_updater import PasteUpdater
-import random
+from random import randint
 
 
 async def say_to_ls(message: Message):
@@ -13,10 +13,6 @@ async def say_to_ls(message: Message):
 
     if args.startswith('/message'):
         await message.bot.send_message(ls_group_id, text=args.removeprefix('/message '))
-
-
-async def message_sender(text_to_print: str, chat_id: int, bot: Bot):
-    await bot.send_message(text=text_to_print, chat_id=chat_id, disable_web_page_preview=True)
 
 
 async def add_paste(message: Message):
@@ -28,11 +24,6 @@ async def add_paste(message: Message):
         await message.reply('ok')
 
 
-def get_slice(frames: list) -> int:
-    count = len(frames)
-    return random.randint(0, count - 10)
-
-
 async def nice_pfp_counter(message: Message):
     calls = Calls()
     frames = Frames()
@@ -40,9 +31,13 @@ async def nice_pfp_counter(message: Message):
 
     frames_count = calls.get_nice_pfp_calls()
     frames, this_frame_count = frames.get_nicest_frame()
-    frames_slice = get_slice(frames)
-
-    for i, frame in enumerate(frames[frames_slice:frames_slice + 10]):
+    count = len(frames)
+    if count > 10:
+        r = randint(0, count - 10)
+        s = slice(r, r + 10)
+    else:
+        s = slice(0, count)
+    for i, frame in enumerate(frames[s]):
         mg.attach_photo(InputFile(frames_dir + f'pic{str(frame)}.jpg'), caption=frame)
 
     await message.bot.send_media_group(test_group_id, mg)
@@ -78,7 +73,8 @@ async def help(message: Message):
         text=f"/message - send message to test_group\n"
              f"/add - add paste to db\n"
              f"/nice_pfp - get nice_pfp count\n"
-             f"/say_stat - get say statistics",
+             f"/say - get say statistics\n"
+             f"/pic - get pic from number",
         chat_id=test_group_id,
     )
 
@@ -86,5 +82,5 @@ async def help(message: Message):
 def setup(dp: Dispatcher):
     dp.register_message_handler(say_to_ls, commands=['message'], chat_id=test_group_id)
     dp.register_message_handler(add_paste, commands=['add'], chat_id=test_group_id)
-    dp.register_message_handler(nice_pfp_counter, commands=['nice_pfp'], chat_id=test_group_id)
-    dp.register_message_handler(help, commands=['help'], chat_id=test_group_id)
+    dp.register_message_handler(nice_pfp_counter, commands=['nice_pfp', 'nice_ava'], chat_id=test_group_id)
+    dp.register_message_handler(help, commands=['help', 'commands'], chat_id=test_group_id)
