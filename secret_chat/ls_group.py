@@ -1,10 +1,14 @@
-from aiogram import Dispatcher
-from aiogram.types import Message
+import asyncio
+from typing import Optional
+
+from aiogram import Dispatcher, Bot
+from aiogram.types import Message, ContentTypes, InputFile
 from aiogram.dispatcher.filters import Text
-from secret_chat.config import users, ls_group_id
+from secret_chat.config import users, ls_group_id, test_group_id, frames_dir
 from datetime import datetime
 from secret_chat.frames import Frames
 from secret_chat.simple_math import Calls
+from utils.utils import StickerFilter, nice_pfp_filter, message_sender
 
 import re
 import random
@@ -94,6 +98,15 @@ def gde_tam_evkek():
         return message[rnd]
     else:
         return None
+
+
+async def get_pic_from_num(message: Message):
+    args = message.get_args()
+    try:
+        pic = InputFile(f'{frames_dir}pic{args}.jpg')
+        await message.reply_photo(pic)
+    except FileNotFoundError:
+        await message.reply(f'ты еблан, пиши /pic <code>[0 &lt;= num &lt; 5670]</code>', parse_mode='HTML')
 
 
 async def dishwasher_timer(bot: Bot):
@@ -203,7 +216,10 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(all, commands=['all'])
     dp.register_message_handler(tmn, commands=['tmn'], chat_id=ls_group_id)
     dp.register_message_handler(gamers, commands=['gamers'], chat_id=ls_group_id)
-    dp.register_message_handler(nice_pfp, Text(contains='ава', ignore_case=True), chat_id=ls_group_id)
-    dp.register_message_handler(nice_pfp, Text(contains='ava', ignore_case=True), chat_id=ls_group_id)
+    dp.register_message_handler(nice_pfp, nice_pfp_filter, chat_id=ls_group_id)
+    dp.register_message_handler(nice_pfp, StickerFilter('AgAD0xAAAh3DcUk', is_nice=True), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
+    dp.register_message_handler(nice_pfp, StickerFilter('AgAD-BQAAs57cEk', is_nice=False), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
+    dp.register_message_handler(nice_pfp, StickerFilter('AgAD-hEAAuepaUk', is_nice=False), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(test, user_id=users['acoola'], chat_id=ls_group_id)
     dp.register_message_handler(commands, commands=['commands'], chat_id=ls_group_id)
+    dp.register_message_handler(get_pic_from_num, commands=['pic'], chat_id=[test_group_id, ls_group_id])
