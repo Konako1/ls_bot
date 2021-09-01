@@ -1,6 +1,6 @@
 from winrt.windows.media.control import GlobalSystemMediaTransportControlsSessionManager as MediaManager
 import asyncio
-from secret_chat.test_group import message_sender
+from utils.utils import message_sender
 from secret_chat.config import ls_group_id, traveling_days
 from aiogram import Bot
 from pprint import pprint
@@ -26,5 +26,6 @@ async def now_playing_checker(bot: Bot, sec: int):
                 ls_group_id,
                 bot
             )
+
         previous_media = media_title
         await asyncio.sleep(sec)
