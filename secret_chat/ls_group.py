@@ -113,6 +113,22 @@ def gde_tam_evkek():
         return None
 
 
+async def dishwasher_timer(bot: Bot):
+    start_date = datetime.now()
+    flag = False
+    while True:
+        if datetime.now().hour == start_date.hour:
+            flag = False
+
+        r = random.randint(0, 25)
+        # print(r)
+        if r == 0 and not flag:
+            await message_sender('@evgfilim1, помой посуду плс', ls_group_id, bot)
+            flag = True
+
+        await asyncio.sleep(3600)
+
+
 async def all(message: Message):
     chat_id = message.chat.id
     if chat_id < 0 and chat_id != -1001465546583:

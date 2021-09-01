@@ -41,6 +41,7 @@ def register():
 
 async def main():
     register()
+    create_task(ls_group.dishwasher_timer(bot))
     create_task(traveling_days.now_playing_checker(bot, 5))
     await on_startup()
     try:
