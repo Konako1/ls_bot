@@ -22,27 +22,9 @@ async def delete_message(message: Message):
     await message.delete()
 
 
-async def nice_ava_checker(text: list[str]) -> bool:
-    is_nice_in_text = False
-    is_ava_in_text = False
-
-    if 'ава' in text or 'ava' in text:
-        is_ava_in_text = True
-
-    if 'найс' in text or 'nice' in text:
-        is_nice_in_text = True
-
-    return is_nice_in_text and is_ava_in_text
-
-
-async def nice_pfp(message: Message):
+async def nice_pfp(message: Message, words: Optional[list[str]] = None, is_nice: Optional[bool] = None):
     calls = Calls()
     frames = Frames()
-    text = re.split(r'[,.;:\s]', message.text.lower())
-    print(text)
-
-    if not await nice_ava_checker(text):
-        return
 
     date_time = frames.get_datetime()
     msg_date = message.date
@@ -50,11 +32,12 @@ async def nice_pfp(message: Message):
         await message.reply("Сказать что ава моего хозяина ахуенная (или нет) можно всего раз в час.")
         return
 
-    frames.set_datetime(msg_date)
+    if words is not None and 'не' in words or is_nice is False:
+        await message.bot.send_message(ls_group_id, 'Сорян, реально говно какое-то поставил, исправляюсь.')
+        await message.bot.send_message(test_group_id, 'NeNicePfp_FUCKING_ALERT1337')
+        return
 
-    if 'не' in text:
-        await message.bot.send_message(ls_group_id, ':(')
-        return False
+    frames.set_datetime(msg_date)
 
     await message.bot.send_message(ls_group_id, 'спс')
 
