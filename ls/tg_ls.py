@@ -3,7 +3,7 @@ import random
 import time
 
 import vk_api
-from methods.methods import delayed_delete
+from utils.utils import delayed_delete
 from secret_chat.paste_updater import PasteUpdater
 from secret_chat.stickers import Stickers
 from secret_chat.simple_math import Calls, math
@@ -14,6 +14,7 @@ from aiogram.dispatcher.filters import Text
 from secret_chat.config import ls_group_id, test_group_id, spring_05_preview_direction
 from asyncio import create_task
 from pprint import pprint
+from utils.utils import StickerFilter
 
 calls = Calls()
 vk = vk_api.Vk()
@@ -230,23 +231,20 @@ async def smart_poll(message: Message):
 
 
 async def bear(message: Message):
-    args = message.sticker.file_unique_id
-
-    if args == 'AgADXAADDnr7Cg':
-        stickers = Stickers()
-        sticker_date, sticker_prob = stickers.get_bear_values()
-        msg_date = message.date
-        time_calc = msg_date - sticker_date
-        if time_calc.seconds < 240:
-            rnd = random.choice(range(sticker_prob))
-            if rnd == 0:
-                await message.answer_sticker(
-                    sticker='CAACAgIAAxkBAAECH0VgYjnrZnEhC9I3mjXeIlJZVf4osQACXAADDnr7CuShPCAcZWbPHgQ'
-                )
-                print(f"it's bear time in group {message.chat.title}\nprob was: {round(1 / sticker_prob, 2)}\n")
-                stickers.update_bear_values(msg_date, 10)
-                return
-        stickers.update_bear_values(msg_date, sticker_prob - 1)
+    stickers = Stickers()
+    sticker_date, sticker_prob = stickers.get_bear_values()
+    msg_date = message.date
+    time_calc = msg_date - sticker_date
+    if time_calc.seconds < 240:
+        rnd = random.choice(range(sticker_prob))
+        if rnd == 0:
+            await message.answer_sticker(
+                sticker='CAACAgIAAxkBAAECH0VgYjnrZnEhC9I3mjXeIlJZVf4osQACXAADDnr7CuShPCAcZWbPHgQ'
+            )
+            print(f"it's bear time in group {message.chat.title}\nprob was: {round(1 / sticker_prob, 2)}\n")
+            stickers.update_bear_values(msg_date, 10)
+            return
+    stickers.update_bear_values(msg_date, sticker_prob - 1)
 
 
 async def minus_chel(message: Message):
@@ -349,7 +347,7 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(pasta, commands=['pasta'])
     dp.register_message_handler(say, commands=['say'])
     dp.register_message_handler(kto_format, commands=['format'])
-    dp.register_message_handler(bear, content_types=ContentTypes.STICKER)
+    dp.register_message_handler(bear, StickerFilter('AgADXAADDnr7Cg'), content_types=ContentTypes.STICKER)
     dp.register_message_handler(minus_chel, Text(contains='голубь', ignore_case=True))
     dp.register_message_handler(get_graves_count, commands=['graveyard'])
     dp.register_message_handler(get_number_one_on_spring_05, commands=['get_top1'])
