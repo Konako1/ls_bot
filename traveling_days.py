@@ -1,9 +1,8 @@
 from winrt.windows.media.control import GlobalSystemMediaTransportControlsSessionManager as MediaManager
 import asyncio
-from utils.utils import message_sender
+from utils import message_sender
 from secret_chat.config import ls_group_id, traveling_days
 from aiogram import Bot
-from pprint import pprint
 
 
 async def get_media_title():

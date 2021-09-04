@@ -3,12 +3,11 @@ from typing import Optional
 
 from aiogram import Dispatcher, Bot
 from aiogram.types import Message, ContentTypes, InputFile
-from aiogram.dispatcher.filters import Text
 from secret_chat.config import users, ls_group_id, test_group_id, frames_dir
 from datetime import datetime
 from secret_chat.frames import Frames
 from secret_chat.simple_math import Calls
-from utils.utils import StickerFilter, nice_pfp_filter, message_sender
+from utils import StickerFilter, nice_pfp_filter, message_sender
 
 import re
 import random

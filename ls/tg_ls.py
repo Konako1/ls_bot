@@ -1,20 +1,18 @@
 from datetime import datetime
 import random
-import time
 
 import vk_api
-from utils.utils import delayed_delete
+from utils import delayed_delete
 from secret_chat.paste_updater import PasteUpdater
 from secret_chat.stickers import Stickers
 from secret_chat.simple_math import Calls, math
 from secret_chat.test_group import get_say_statistics, get_num_as_pow
-from aiogram import Bot, Dispatcher
-from aiogram.types import Message, ContentTypes, InputFile, MediaGroup
+from aiogram import Dispatcher
+from aiogram.types import Message, ContentTypes, InputFile
 from aiogram.dispatcher.filters import Text
-from secret_chat.config import ls_group_id, test_group_id, spring_05_preview_direction
+from secret_chat.config import test_group_id, spring_05_preview_direction
 from asyncio import create_task
-from pprint import pprint
-from utils.utils import StickerFilter
+from utils import StickerFilter
 
 calls = Calls()
 vk = vk_api.Vk()
