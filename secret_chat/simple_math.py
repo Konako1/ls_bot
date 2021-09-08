@@ -3,7 +3,7 @@ import json
 import time
 from dataclasses import dataclass
 
-from secret_chat.config import path, ls_group_id
+from secret_chat.config import json_path, ls_group_id
 
 symbols = [
     '+',
@@ -27,13 +27,13 @@ class Calls:
 
     def calls_load(self):
         try:
-            with open(path + 'calls_chest.json', encoding='utf8') as f:
+            with open(json_path + 'calls_chest.json', encoding='utf8') as f:
                 self._calls_storage = json.load(f)
         except FileExistsError:
             pass
 
     def save_calls(self):
-        with open(path + 'calls_chest.json', 'w', encoding='utf8') as f:
+        with open(json_path + 'calls_chest.json', 'w', encoding='utf8') as f:
             json.dump(self._calls_storage, f, ensure_ascii=False, )
 
     def get_say_count(self) -> int:
