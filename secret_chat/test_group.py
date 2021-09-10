@@ -6,7 +6,7 @@ from secret_chat.simple_math import Calls
 from secret_chat.frames import Frames
 from secret_chat.paste_updater import PasteUpdater
 from random import randint
-
+from asyncio import create_task, sleep
 
 async def say_to_ls(message: Message):
     args = message.text
@@ -44,6 +44,31 @@ async def nice_pfp_counter(message: Message):
     await message.answer(f'Таких ав сохранено: {this_frame_count}\nВсего найс ав: {frames_count}.')
 
 
+async def get_similar_nice_pfp(message: Message):
+    _frames = Frames()
+
+    frames = _frames.get_all_frames()  # type: list[int]
+    frames.sort()
+    similar_frames = list()
+    for i, frame in enumerate(frames):
+        if i + 1 == len(frames):
+            break
+        if frames[i + 1] - frames[i] < 3:
+            similar_frames.append((frames[i], frames[i + 1]))
+    create_task(answer_similar_pfp(message, similar_frames))
+
+
+async def answer_similar_pfp(message: Message, similar_frames: list):
+    for f_tuple in similar_frames:
+        await message.bot.send_chat_action(message.chat.id, 'upload_photo')
+        mg = MediaGroup()
+        mg.attach_photo(InputFile(frames_dir + f'pic{str(f_tuple[0])}.jpg'), caption=f'{str(f_tuple[0])} | {str(f_tuple[1])}')
+        mg.attach_photo(InputFile(frames_dir + f'pic{str(f_tuple[1])}.jpg'))
+        await message.answer_media_group(mg)
+        await sleep(5)
+    await message.answer(f'Всего {str(len(similar_frames) * 2)} похожих кадров.')
+
+
 def get_say_numbers() -> tuple[str, str, int]:
     calls = Calls()
     highest_num = calls.get_highest_num().number
@@ -74,7 +99,8 @@ async def help(message: Message):
              f"/add - add paste to db\n"
              f"/nice_pfp - get nice_pfp count\n"
              f"/say - get say statistics\n"
-             f"/pic - get pic from number",
+             f"/pic - get pic from number\n"
+             f"/get_similar_pfp - returns similar pfp",
         chat_id=test_group_id,
     )
 
@@ -83,4 +109,5 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(say_to_ls, commands=['message'], chat_id=test_group_id)
     dp.register_message_handler(add_paste, commands=['add'], chat_id=test_group_id)
     dp.register_message_handler(nice_pfp_counter, commands=['nice_pfp', 'nice_ava'], chat_id=test_group_id)
+    dp.register_message_handler(get_similar_nice_pfp, commands=['get_similar_pfp'], chat_id=test_group_id)
     dp.register_message_handler(help, commands=['help', 'commands'], chat_id=test_group_id)

@@ -36,6 +36,12 @@ class Frames:
                 value = v
         return frames, value
 
+    def get_all_frames(self) -> list[int]:
+        frames = list()
+        for frame in self._frames_storage["frames"].keys():
+            frames.append(int(frame))
+        return frames
+
     def get_datetime(self) -> datetime:
         return datetime.fromtimestamp(self._frames_storage['nice_ava_datetime'])
 
