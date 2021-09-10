@@ -43,6 +43,6 @@ async def delayed_delete(message: Message, sec: int):
     try:
         await message.delete()
     except MessageToDeleteNotFound as e:
-        await message.answer(text=f'Какой то ебалай удалил сообщение, потому лови {e} себе в ебальник')
+        await message.answer(text=f'Какой то ебалай удалил {message.text!r}, потому лови {e} себе в ебальник')
     except MessageCantBeDeleted as e:
         await message.answer(text=f'Я не ебу че произошло, но я не могу чето там удалить, а конкретно: {message.text}')
