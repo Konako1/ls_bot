@@ -3,7 +3,7 @@ from typing import Union
 
 from aiogram import Bot
 from aiogram.types import Message
-from aiogram.utils.exceptions import MessageToDeleteNotFound
+from aiogram.utils.exceptions import MessageToDeleteNotFound, MessageCantBeDeleted
 from asyncio import sleep
 
 
@@ -44,3 +44,5 @@ async def delayed_delete(message: Message, sec: int):
         await message.delete()
     except MessageToDeleteNotFound as e:
         await message.answer(text=f'Какой то ебалай удалил сообщение, потому лови {e} себе в ебальник')
+    except MessageCantBeDeleted as e:
+        await message.answer(text=f'Я не ебу че произошло, но я не могу чето там удалить, а конкретно: {message.text}')
