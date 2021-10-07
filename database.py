@@ -25,6 +25,21 @@ class Statistic:
     nice_pfp_count: int
 
 
+@dataclass()
+class StatType:
+    say = 1
+    pigeon = 2
+    nice_pfp = 3
+    anek = 4
+
+
+@dataclass()
+class Frame:
+    frame: int
+    datetime: float
+    count: int
+
+
 class Db:
     def __init__(self, path=main_dir + 'ls.db'):
         self._conn = aiosqlite.connect(path)
