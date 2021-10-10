@@ -5,9 +5,8 @@ from aiogram import Dispatcher, Bot
 from aiogram.types import Message, ContentTypes, InputFile
 from secret_chat.config import users, ls_group_id, test_group_id, frames_dir
 from datetime import datetime
-from secret_chat.frames import Frames
-from secret_chat.simple_math import Calls
 from utils import StickerFilter, nice_pfp_filter, message_sender
+from database import Db, Frame, StatType
 
 import re
 import random
@@ -26,10 +25,9 @@ async def delete_message(message: Message):
 
 
 async def nice_pfp(message: Message, words: Optional[list[str]] = None, is_nice: Optional[bool] = None):
-    calls = Calls()
-    frames = Frames()
-
-    date_time = frames.get_datetime()
+    db = Db()
+    frame_data = await db.get_last_frame()
+    date_time = datetime.fromtimestamp(frame_data.datetime)
     msg_date = message.date
     if msg_date.hour == date_time.hour and msg_date.day == date_time.day:
         await message.reply("Сказать что ава моего хозяина ахуенная (или нет) можно всего раз в час.")
@@ -40,14 +38,14 @@ async def nice_pfp(message: Message, words: Optional[list[str]] = None, is_nice:
         await message.bot.send_message(test_group_id, 'NeNicePfp_FUCKING_ALERT1337')
         return
 
-    frames.set_datetime(msg_date)
+    info = await message.bot.get_chat(users['konako'])
+    frame = info.bio.rsplit(" ", maxsplit=1)[1]
+
+    await db.add_frame(int(frame), msg_date.timestamp())
 
     await message.bot.send_message(ls_group_id, 'спс')
 
-    calls.nice_pfp_sayed()
-    info = await message.bot.get_chat(users['konako'])
-    frame = info.bio.rsplit(" ", maxsplit=1)[1]
-    frames.save_frame(int(frame))
+    await db.update_stat(StatType().nice_pfp)
 
 
 async def test(message: Message):
