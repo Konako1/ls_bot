@@ -1,6 +1,6 @@
 import json
 import random
-from secret_chat.config import path
+from secret_chat.config import json_path
 
 
 class PasteUpdater:
@@ -10,13 +10,13 @@ class PasteUpdater:
 
     def load(self):
         try:
-            with open(path + 'pastes.json', encoding='utf8') as f:
+            with open(json_path + 'pastes.json', encoding='utf8') as f:
                 self._storage = json.load(f)
         except FileExistsError:
             pass
 
     def save(self):
-        with open(path + "pastes.json", 'w', encoding='utf8') as f:
+        with open(json_path + "pastes.json", 'w', encoding='utf8') as f:
             json.dump(self._storage, f, indent=4, ensure_ascii=False, )
 
     def add_paste(self, text: str):

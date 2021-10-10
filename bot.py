@@ -1,5 +1,4 @@
 from ls import tg_ls
-import vk_api
 import traveling_days
 from secret_chat import ls_group, config, test_group
 from asyncio import run, create_task

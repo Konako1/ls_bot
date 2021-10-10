@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from secret_chat.config import path
+from secret_chat.config import json_path
 import json
 
 
@@ -11,13 +11,13 @@ class Stickers:
 
     def stickers_load(self):
         try:
-            with open(path + 'stickers.json', encoding='utf8') as f:
+            with open(json_path + 'stickers.json', encoding='utf8') as f:
                 self._stickers_storage = json.load(f)
         except FileExistsError:
             pass
 
     def save_data(self):
-        with open(path + 'stickers.json', 'w', encoding='utf8') as f:
+        with open(json_path + 'stickers.json', 'w', encoding='utf8') as f:
             json.dump(self._stickers_storage, f, ensure_ascii=False)
 
     def update_bear_values(self, date: datetime, prob: int):

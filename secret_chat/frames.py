@@ -1,4 +1,4 @@
-from secret_chat.config import path
+from secret_chat.config import json_path
 import json
 from datetime import datetime
 
@@ -10,13 +10,13 @@ class Frames:
 
     def frames_load(self):
         try:
-            with open(path + 'frames.json', encoding='utf8') as f:
+            with open(json_path + 'frames.json', encoding='utf8') as f:
                 self._frames_storage = json.load(f)
         except FileExistsError:
             pass
 
     def save_frames(self):
-        with open(path + 'frames.json', 'w', encoding='utf8') as f:
+        with open(json_path + 'frames.json', 'w', encoding='utf8') as f:
             json.dump(self._frames_storage, f, ensure_ascii=False, )
 
     def save_frame(self, frame: int):

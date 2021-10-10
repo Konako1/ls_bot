@@ -2,10 +2,9 @@ from datetime import datetime
 import random
 
 import vk_api
+from database import Db
 from utils import delayed_delete
-from secret_chat.paste_updater import PasteUpdater
-from secret_chat.stickers import Stickers
-from secret_chat.simple_math import Calls, math
+from secret_chat.simple_math import math
 from secret_chat.test_group import get_say_statistics, get_num_as_pow
 from aiogram import Dispatcher
 from aiogram.types import Message, ContentTypes, InputFile
@@ -13,8 +12,8 @@ from aiogram.dispatcher.filters import Text
 from secret_chat.config import test_group_id, spring_05_preview_direction
 from asyncio import create_task
 from utils import StickerFilter
+from database import StatType, StickerInfo
 
-calls = Calls()
 vk = vk_api.Vk()
 
 
@@ -174,31 +173,33 @@ async def say(message: Message):
         message.chat.id
     )
 
-    num_len = len(str(num))
+    db = Db()
+
     if num > 0:
-        saved_num = calls.get_highest_num()
-        if num_len >= saved_num.digit:
-            if num > saved_num.number:
-                print(f'New highest num: {get_num_as_pow(num)}')
-                calls.update_highest_num(num, num_len)
+        saved_num = await db.get_num('positive')
+        if num > saved_num:
+            print(f'New highest num: {get_num_as_pow(num)}')
+            await db.update_num(num)
     elif num < 0:
-        saved_num = calls.get_lowest_num()
-        if num_len >= saved_num.digit:
-            if num < saved_num.number:
-                print(f'New lowest num: {get_num_as_pow(num)}')
-                calls.update_lowest_num(num, num_len)
+        saved_num = await db.get_num('negtive')
+        if num < saved_num:
+            print(f'New lowest num: {get_num_as_pow(num)}')
+            await db.update_num(num)
 
     msg = await message.answer(text=message_text)
     await message.delete()
     if not is_funny_number:
         create_task(delayed_delete(msg, 15))
 
-    calls.say_was_sayed()
+    await db.update_stat(StatType.say)
 
 
 async def pasta(message: Message):
-    pastes = PasteUpdater()
-    msg = await message.reply(text=pastes.get_random_paste())
+    db = Db()
+    count = await db.get_paste_count()
+    offset = random.randint(0, count)
+    paste = await db.get_paste(offset)
+    msg = await message.reply(text=paste)
     create_task(delayed_delete(msg, 300))
     create_task(delayed_delete(message, 300))
 
@@ -229,72 +230,45 @@ async def smart_poll(message: Message):
 
 
 async def bear(message: Message):
-    stickers = Stickers()
-    sticker_date, sticker_prob = stickers.get_bear_values()
-    msg_date = message.date
-    time_calc = msg_date - sticker_date
-    if time_calc.seconds < 240:
-        rnd = random.choice(range(sticker_prob))
+    db = Db()
+    unique_id = message.sticker.file_unique_id
+    sticker_info = await db.get_sticker_info(unique_id)
+    msg_date = message.date.timestamp()
+    time_calc = msg_date - sticker_info.date.timestamp()
+    if time_calc < 240:
+        rnd = random.choice(range(sticker_info.probability))
         if rnd == 0:
             await message.answer_sticker(
                 sticker='CAACAgIAAxkBAAECH0VgYjnrZnEhC9I3mjXeIlJZVf4osQACXAADDnr7CuShPCAcZWbPHgQ'
             )
-            print(f"it's bear time in group {message.chat.title}\nprob was: {round(1 / sticker_prob, 2)}\n")
-            stickers.update_bear_values(msg_date, 10)
+            print(f"it's bear time in group {message.chat.title}\nprob was: {round(1 / sticker_info.probability, 2)}\n")
+            await db.update_sticker(StickerInfo(
+                name=unique_id,
+                date=message.date,
+                probability=10,
+                count=sticker_info.count + 1
+            ))
             return
-    stickers.update_bear_values(msg_date, sticker_prob - 1)
+    await db.update_sticker(StickerInfo(
+        name=unique_id,
+        date=message.date,
+        probability=sticker_info.probability - 1,
+        count=sticker_info.count
+    ))
 
 
 async def minus_chel(message: Message):
     text = message.text.lower()
     if 'сдох' in text or 'минус' in text:
         await message.reply('Помянем.')
-        calls.golub_was_found()
+        db = Db()
+        await db.update_stat(StatType.pigeon)
 
 
 async def get_graves_count(message: Message):
-    await message.reply(text=f'Голубей подохло: {calls.get_deaths_count()}')
-
-
-async def set_number_one_on_spring_05(message: Message):
-    args = message.get_args().split(' ')
-    if len(args) != 2:
-        await message.reply('Пошел нахуй идиот')
-        return
-
-    try:
-        time = round(float(args[1]), 3)
-        name = args[0]
-    except ValueError:
-        await message.reply('Пошел нахуй идиот')
-        return
-
-    previous_record = calls.get_number_one_time()
-    if previous_record < time:
-        await message.reply('Чет слабовато, иди ка ты нахуй')
-        return
-    elif time < 27:
-        await message.reply('Нихуя ты быстрый, читераст наверное, иди ка ты нахуй')
-        return
-
-    calls.update_number_one_name(name)
-    calls.update_number_one_time(time)
-
-    await message.reply('Нихуя, жесть ты крут')
-    await message.answer_sticker(
-        sticker='CAACAgIAAxkBAAECda5g0n3sq6IZp8b2AAGlYr8b8EM6jEEAArMABJrPDSU5w8aXOEktHwQ',
-    )
-
-
-async def get_number_one_on_spring_05(message: Message):
-    time = calls.get_number_one_time()
-    name = calls.get_number_one_name()
-    text = f'Топ1 Курганской Области на Spring 05:\n{name} - {time}'
-
-    await message.reply_photo(
-        photo=InputFile(spring_05_preview_direction),
-        caption=text,
-    )
+    db = Db()
+    count = await db.get_statistics(StatType.pigeon)
+    await message.reply(text=f'Голубей подохло: {count}')
 
 
 # TODO: замутить вызов операции подсчета кол-ва постов на стене только 1 раз
@@ -313,6 +287,8 @@ async def get_anek(message: Message):
 
     create_task(delayed_delete(msg, 300))
     create_task(delayed_delete(message, 300))
+    db = Db()
+    await db.update_stat(StatType.anek)
 
     print(f'анек номер {offset}')
 
@@ -348,7 +324,5 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(bear, StickerFilter('AgADXAADDnr7Cg'), content_types=ContentTypes.STICKER)
     dp.register_message_handler(minus_chel, Text(contains='голубь', ignore_case=True))
     dp.register_message_handler(get_graves_count, commands=['graveyard'])
-    dp.register_message_handler(get_number_one_on_spring_05, commands=['get_top1'])
-    dp.register_message_handler(set_number_one_on_spring_05, commands=['update_top1'])
     dp.register_message_handler(get_anek, commands=['anek'])
     dp.register_message_handler(features, commands=['features'])
