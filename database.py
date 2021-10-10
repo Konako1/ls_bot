@@ -23,6 +23,7 @@ class Statistic:
     say_count: int
     pigeon_count: int
     nice_pfp_count: int
+    anek_count: int
 
 
 @dataclass()
@@ -48,31 +49,42 @@ class Db:
         self._conn = await self._conn  # type: aiosqlite.Connection
         await self._conn.execute('CREATE TABLE IF NOT EXISTS calls(sign TEXT PRIMARY KEY NOT NULL,'
                                  'num TEXT NOT NULL)')
-        await self._conn.execute('CREATE TABLE IF NOT EXISTS frames(frame INTEGER PRIMARY KEY NOT NULL,'
-                                 'count INTEGER NOT NULL)')
+        await self._conn.execute('CREATE TABLE IF NOT EXISTS frames(id INTEGER PRIMARY KEY AUTOINCREMENT, '
+                                 'frame INTEGER NOT NULL,'
+                                 'count INTEGER NOT NULL, '
+                                 'datetime FLOAT NOT NULL)')
         await self._conn.execute('CREATE TABLE IF NOT EXISTS stickers(sticker TEXT PRIMARY KEY NOT NULL ,'
                                  'date FLOAT NOT NULL,'
                                  'probability INTEGER NOT NULL,'
                                  'count INTEGER NOT NULL)')
-        await self._conn.execute('CREATE TABLE IF NOT EXISTS stat(name TEXT PRIMARY KEY NOT NULL,'
+        await self._conn.execute('CREATE TABLE IF NOT EXISTS stat(stat INTEGER PRIMARY KEY NOT NULL,'
                                  'count INTEGER NOT NULL)')
+        await self._conn.execute('CREATE TABLE IF NOT EXISTS pastes(paste TEXT PRIMARY KEY NOT NULL)')
         await self._conn.commit()
 
     async def close(self):
         await self._conn.commit()
         await self._conn.close()
 
-    async def add_frame(self, frame: int):
-        frame_count = await self.get_frame_count(frame)
+    async def add_frame(self, frame: int, recent_datetime: float):
+        frame_data = await self.get_frame_stat(frame)
+        frame_count = frame_data.count
         if frame_count is None:
-            await self._conn.execute('INSERT INTO frames(frame, count) VALUES (?, ?)',
-                                     (frame, frame_count))
+            await self._conn.execute('INSERT INTO frames(frame, count, recentDatetime) VALUES (?, ?, ?)',
+                                     (frame, 1, recent_datetime))
         else:
-            await self._conn.execute('UPDATE frames SET frame=? WHERE count=?',
-                                     (frame, frame_count))
+            await self._conn.execute('UPDATE frames SET frame=?, recentDatetime=? WHERE count=? ',
+                                     (frame, recent_datetime, frame_count + 1))
         await self._conn.commit()
 
-    async def update_num(self, num: int):
+    async def add_paste(self, text: str):
+        if text is None:
+            return False
+        await self._conn.execute('INSERT INTO pastes(paste) VALUES (?)',
+                                 (text, ))
+        await self._conn.commit()
+
+    async def update_num(self, num: float):
         sign = 'positive' if num > 0 else 'negative'
         saved_num = await self.get_num(sign)
 
@@ -96,20 +108,56 @@ class Db:
                                      (sticker.date.timestamp, sticker.probability, previous_sticker.count + 1, sticker.name))
         await self._conn.commit()
 
-    async def update_stat(self, name: str):
-        stat_count = await self.get_statistics(name)
+    async def update_stat(self, stat_type: int):
+        stat_count = await self.get_statistics(stat_type)
 
         if stat_count is None:
-            await self._conn.execute('INSERT INTO stat(name, count) VALUES (?, ?)',
-                                     (name, 1))
+            await self._conn.execute('INSERT INTO stat(stat, count) VALUES (?, ?)',
+                                     (stat_type, 1))
         else:
-            await self._conn.execute('UPDATE stat SET count=? WHERE name=?',
-                                     (stat_count + 1, name))
+            await self._conn.execute('UPDATE stat SET count=? WHERE stat=?',
+                                     (stat_count + 1, stat_type))
         await self._conn.commit()
 
-    async def get_frame_count(self, frame: int) -> Optional[int]:
-        cur = await self._conn.execute('SELECT count FROM frames WHERE frame=?',
+    async def get_frame_stat(self, frame: int) -> Optional[Frame]:
+        cur = await self._conn.execute('SELECT count, datetime FROM frames WHERE frame=?',
                                        (frame, ))
+        row = await cur.fetchone()
+        if row is not None:
+            return Frame(
+                frame=frame,
+                count=row[0],
+                datetime=row[1],
+            )
+        return None
+
+    async def get_frames_data(self) -> list[tuple]:
+        cur = await self._conn.execute('SELECT frame, count FROM frames')
+
+        rows = await cur.fetchall()
+        return rows
+
+    async def get_last_frame(self) -> Optional[Frame]:
+        cur = await self._conn.execute('SELECT frame, count, datetime FROM frames ORDER BY id DESC LIMIT 1')
+        row = await cur.fetchone()
+        if row is not None:
+            return Frame(
+                frame=row[0],
+                count=row[1],
+                datetime=row[2],
+            )
+        return None
+
+    async def get_paste(self, offset: int, limit: int = 1) -> Optional[str]:
+        cur = await self._conn.execute('SELECT paste FROM pastes LIMIT ? OFFSET ?',
+                                       (limit, offset))
+        row = await cur.fetchone()
+        if row is not None:
+            return row[0]
+        return None
+
+    async def get_paste_count(self) -> Optional[int]:
+        cur = await self._conn.execute('COUNT(*)')
         row = await cur.fetchone()
         if row is not None:
             return row[0]
@@ -131,9 +179,9 @@ class Db:
             return StickerInfo(sticker, datetime.fromtimestamp(row[0]), row[1], row[2])
         return None
 
-    async def get_statistics(self, stat_type: str) -> Optional[int]:
-        cur = await self._conn.execute('SELECT count FROM stat WHERE name=?',
-                                       (stat_type, ))
+    async def get_statistics(self, stat: int) -> Optional[int]:
+        cur = await self._conn.execute('SELECT count FROM stat WHERE stat=?',
+                                       (stat, ))
         row = await cur.fetchone()
         if row is not None:
             return row[0]
