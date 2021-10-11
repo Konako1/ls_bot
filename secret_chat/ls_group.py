@@ -24,28 +24,41 @@ async def delete_message(message: Message):
     await message.delete()
 
 
-async def nice_pfp(message: Message, words: Optional[list[str]] = None, is_nice: Optional[bool] = None):
-    db = Db()
-    frame_data = await db.get_last_frame()
-    date_time = datetime.fromtimestamp(frame_data.datetime)
-    msg_date = message.date
-    if msg_date.hour == date_time.hour and msg_date.day == date_time.day:
-        await message.reply("Сказать что ава моего хозяина ахуенная (или нет) можно всего раз в час.")
-        return
-
+async def change_pfp(message: Message, words: Optional[list[str]] = None, is_nice: Optional[bool] = None) -> bool:
     if words is not None and 'не' in words or is_nice is False:
         await message.bot.send_message(ls_group_id, 'Сорян, реально говно какое-то поставил, исправляюсь.')
         await message.bot.send_message(test_group_id, 'NeNicePfp_FUCKING_ALERT1337')
-        return
+        return True
+    return False
 
+
+async def add_pfp_in_db(message: Message, db: Db):
     info = await message.bot.get_chat(users['konako'])
     frame = info.bio.rsplit(" ", maxsplit=1)[1]
-
-    await db.add_frame(int(frame), msg_date.timestamp())
-
+    await db.add_frame(int(frame), message.date.timestamp())
     await message.bot.send_message(ls_group_id, 'спс')
-
     await db.update_stat(StatType().nice_pfp)
+
+
+async def nice_pfp(message: Message, words: Optional[list[str]] = None, is_nice: Optional[bool] = None):
+    async with Db() as db:
+        frame_data = await db.get_last_frame()
+        if frame_data is None:
+            if await change_pfp(message, words, is_nice):
+                return
+            await add_pfp_in_db(message, db)
+            return
+
+        date_time = datetime.fromtimestamp(frame_data.datetime)
+        msg_date = message.date
+        if msg_date.hour == date_time.hour and msg_date.day == date_time.day:
+            await message.reply("Сказать что ава моего хозяина ахуенная (или нет) можно всего раз в час.")
+            return
+
+        if await change_pfp(message, words, is_nice):
+            return
+
+        await add_pfp_in_db(message, db)
 
 
 async def test(message: Message):
