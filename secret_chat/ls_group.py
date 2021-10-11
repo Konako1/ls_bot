@@ -186,11 +186,10 @@ async def commands(message: Message):
            f'/all - Пинг всех участников конфы.\n' \
            f'/tmn - Пинг всех участников из Тюмени.\n' \
            f'/gamers - Пинг GAYмеров.\n' \
+           f'/status - Статус майнкрафт сервера.\n' \
            f'/pasta - Рандомная паста.\n' \
            f'/say - Бесполезная матеша.\n' \
            f'/graveyard - Количество голубей на кладбище.\n' \
-           f'/update_top1 [nickname] [ss.sss] - Обновляет рекорд на Spring 05.\n' \
-           f'/get_top1 - Возвращает топ 1 на Spring 05.\n' \
            f'Фичи:\n' \
            f'Словосочетания "голубь сдох" или "минус голубь" добавят одного голубя на кладбище.\n' \
            f'С некоторым шансом бот может кинуть медведя во время спама медведей.'
@@ -218,5 +217,8 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD-BQAAs57cEk', is_nice=False), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD-hEAAuepaUk', is_nice=False), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(test, user_id=users['acoola'], chat_id=ls_group_id)
-    dp.register_message_handler(commands, commands=['commands'], chat_id=ls_group_id)
+    dp.register_message_handler(commands, commands=['commands', 'c'], chat_id=ls_group_id)
     dp.register_message_handler(get_pic_from_num, commands=['pic'], chat_id=[test_group_id, ls_group_id])
+    dp.register_callback_query_handler(callback_handler, text=['yes', 'no'], chat_id=test_group_id)
+    dp.register_message_handler(be_bra, regexp=re.compile(r'\bбе\b', re.I), chat_id=ls_group_id)
+    dp.register_message_handler(server_status, commands='status', chat_id=ls_group_id)

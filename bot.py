@@ -16,8 +16,6 @@ async def on_startup():
         BotCommand('say', 'Бесполезная матеша.'),
         BotCommand('pasta', 'Рандомная паста.'),
         BotCommand('graveyard', 'Количество голубей на кладбище.'),
-        BotCommand('get_top1', 'Возвращает топ 1 на Spring 05.'),
-        BotCommand('update_top1', '[nickname] [ss.sss] - Обновляет рекорд на Spring 05.'),
         BotCommand('all', 'Пинг всех участников конфы.'),
         # BotCommand('tmn', 'Пинг всех участников из Тюмени.'),
         # BotCommand('gamers', 'Пинг GAYмеров.'),
