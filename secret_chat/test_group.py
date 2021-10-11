@@ -24,10 +24,10 @@ async def say_to_ls(message: Message):
 
 async def add_paste(message: Message):
     args = message.text
-    db = Db()
-    if args.startswith('/add'):
-        await db.add_paste(text=args.removeprefix('/add '))
-        await message.reply('ok')
+    async with Db() as db:
+        if args.startswith('/add'):
+            await db.add_paste(text=args.removeprefix('/add '))
+            await message.reply('ok')
 
 
 def sort_top_frames(frames: list[tuple]) -> FrameData:
@@ -54,13 +54,12 @@ def sort_top_frames(frames: list[tuple]) -> FrameData:
 
 
 async def nice_pfp_counter(message: Message):
-    db = Db()
     mg = MediaGroup()
+    async with Db() as db:
+        frames_count = await db.get_statistics(StatType().nice_pfp)
+        frames_data = await db.get_frames_data()
 
-    frames_count = await db.get_statistics(StatType().nice_pfp)
-    frames_data = await db.get_frames_data()
     f_sorted = sort_top_frames(frames_data)
-
     count = f_sorted.max_count
     if count > 10:
         r = randint(0, count - 10)
@@ -79,8 +78,8 @@ async def nice_pfp_counter(message: Message):
 
 
 async def get_similar_nice_pfp(message: Message):
-    db = Db()
-    frames = await db.get_frames_data()  # type: list[tuple]
+    async with Db() as db:
+        frames = await db.get_frames_data()  # type: list[tuple]
     frames.sort()
     similar_frames = list()
     for i, frame in enumerate(frames):
@@ -102,11 +101,11 @@ async def answer_similar_pfp(message: Message, similar_frames: list):
     await message.answer(f'Всего {str(len(similar_frames) * 2)} похожих кадров.')
 
 
-def get_say_numbers() -> tuple[str, str, int]:
-    db = Db()
-    highest_num = await db.get_num('positive')
-    lowest_num = await db.get_num('negative')
-    say_count = await db.get_statistics(StatType.say)
+async def get_say_numbers() -> tuple[str, str, int]:
+    async with Db() as db:
+        highest_num = await db.get_num('positive')
+        lowest_num = await db.get_num('negative')
+        say_count = await db.get_statistics(StatType.say)
 
     highest_num_str = get_num_as_pow(highest_num)
     lowest_num_str = get_num_as_pow(lowest_num)
@@ -119,7 +118,7 @@ def get_num_as_pow(num: float) -> str:
 
 
 async def get_say_statistics(message: Message):
-    highest, lowest, say_count = get_say_numbers()
+    highest, lowest, say_count = await get_say_numbers()
     await message.bot.send_message(
         text=f'Say stats:\ncount — {say_count}\nlowest — {lowest}\nhighest — {highest}',
         chat_id=test_group_id,
@@ -139,7 +138,7 @@ async def help(message: Message):
 
 
 def setup(dp: Dispatcher):
-    dp.register_message_handler(say_to_ls, commands=['message'], chat_id=test_group_id)
+    dp.register_message_handler(say_to_ls, commands=['message', 'm'], chat_id=test_group_id)
     dp.register_message_handler(add_paste, commands=['add'], chat_id=test_group_id)
     dp.register_message_handler(nice_pfp_counter, commands=['nice_pfp', 'nice_ava'], chat_id=test_group_id)
     dp.register_message_handler(get_similar_nice_pfp, commands=['get_similar_pfp'], chat_id=test_group_id)
