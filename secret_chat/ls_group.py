@@ -120,6 +120,11 @@ async def dishwasher_timer(bot: Bot):
             flag = True
 
         await asyncio.sleep(3600)
+async def server_status(message: Message):
+    text = 'Статус сервера: '
+    is_online = await mc_server.is_server_open()
+    text += 'Online' if is_online else 'Offline'
+    await message.reply(text)
 
 
 async def all(message: Message):
