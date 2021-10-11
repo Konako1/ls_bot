@@ -9,6 +9,7 @@ from secret_chat.test_group import get_say_statistics, get_num_as_pow
 from aiogram import Dispatcher
 from aiogram.types import Message, ContentTypes, InputFile
 from aiogram.dispatcher.filters import Text
+from aiogram.utils.exceptions import MessageTextIsEmpty
 from secret_chat.config import test_group_id, spring_05_preview_direction
 from asyncio import create_task
 from utils import StickerFilter
@@ -173,33 +174,36 @@ async def say(message: Message):
         message.chat.id
     )
 
-    db = Db()
+    async with Db() as db:
+        if num > 0:
+            saved_num = await db.get_num('positive')
+            if num > saved_num:
+                print(f'New highest num: {get_num_as_pow(num)}')
+                await db.update_num(num)
+        elif num < 0:
+            saved_num = await db.get_num('negative')
+            if num < saved_num:
+                print(f'New lowest num: {get_num_as_pow(num)}')
+                await db.update_num(num)
 
-    if num > 0:
-        saved_num = await db.get_num('positive')
-        if num > saved_num:
-            print(f'New highest num: {get_num_as_pow(num)}')
-            await db.update_num(num)
-    elif num < 0:
-        saved_num = await db.get_num('negtive')
-        if num < saved_num:
-            print(f'New lowest num: {get_num_as_pow(num)}')
-            await db.update_num(num)
+        msg_answer = await message.answer(text=message_text)
 
-    msg = await message.answer(text=message_text)
-    await message.delete()
-    if not is_funny_number:
-        create_task(delayed_delete(msg, 15))
+        if not is_funny_number:
+            create_task(delayed_delete(message, 15))
+            create_task(delayed_delete(msg_answer, 15))
 
-    await db.update_stat(StatType.say)
+        await db.update_stat(StatType.say)
 
 
 async def pasta(message: Message):
-    db = Db()
-    count = await db.get_paste_count()
-    offset = random.randint(0, count)
-    paste = await db.get_paste(offset)
-    msg = await message.reply(text=paste)
+    async with Db() as db:
+        count = await db.get_paste_count()
+        offset = random.randint(0, count)
+        paste = await db.get_paste(offset)
+    try:
+        msg = await message.reply(text=paste)
+    except MessageTextIsEmpty as e:
+        msg = await message.reply(text=f'Чет я нихуя не нашел, ну а хули, {e} же')
     create_task(delayed_delete(msg, 300))
     create_task(delayed_delete(message, 300))
 
@@ -230,56 +234,70 @@ async def smart_poll(message: Message):
 
 
 async def bear(message: Message):
-    db = Db()
-    unique_id = message.sticker.file_unique_id
-    sticker_info = await db.get_sticker_info(unique_id)
-    msg_date = message.date.timestamp()
-    time_calc = msg_date - sticker_info.date.timestamp()
-    if time_calc < 240:
-        rnd = random.choice(range(sticker_info.probability))
-        if rnd == 0:
-            await message.answer_sticker(
-                sticker='CAACAgIAAxkBAAECH0VgYjnrZnEhC9I3mjXeIlJZVf4osQACXAADDnr7CuShPCAcZWbPHgQ'
-            )
-            print(f"it's bear time in group {message.chat.title}\nprob was: {round(1 / sticker_info.probability, 2)}\n")
+    async with Db() as db:
+        unique_id = message.sticker.file_unique_id
+        sticker_info = await db.get_sticker_info(unique_id)
+        if sticker_info is None:
             await db.update_sticker(StickerInfo(
                 name=unique_id,
                 date=message.date,
                 probability=10,
-                count=sticker_info.count + 1
+                count=1
             ))
-            return
-    await db.update_sticker(StickerInfo(
-        name=unique_id,
-        date=message.date,
-        probability=sticker_info.probability - 1,
-        count=sticker_info.count
-    ))
+        msg_date = message.date.timestamp()
+        time_calc = msg_date - sticker_info.date.timestamp()
+        if time_calc < 240:
+            rnd = random.choice(range(sticker_info.probability))
+            if rnd == 0:
+                await message.answer_sticker(
+                    sticker='CAACAgIAAxkBAAECH0VgYjnrZnEhC9I3mjXeIlJZVf4osQACXAADDnr7CuShPCAcZWbPHgQ'
+                )
+                print(f"it's bear time in group {message.chat.title}\nprob was: {round(1 / sticker_info.probability, 2)}\n")
+                await db.update_sticker(StickerInfo(
+                    name=unique_id,
+                    date=message.date,
+                    probability=10,
+                    count=sticker_info.count + 1
+                ))
+                return
+        await db.update_sticker(StickerInfo(
+            name=unique_id,
+            date=message.date,
+            probability=sticker_info.probability - 1,
+            count=sticker_info.count
+        ))
 
 
 async def minus_chel(message: Message):
     text = message.text.lower()
     if 'сдох' in text or 'минус' in text:
         await message.reply('Помянем.')
-        db = Db()
-        await db.update_stat(StatType.pigeon)
+        async with Db() as db:
+            await db.update_stat(StatType.pigeon)
 
 
 async def get_graves_count(message: Message):
-    db = Db()
-    count = await db.get_statistics(StatType.pigeon)
+    async with Db() as db:
+        count = await db.get_statistics(StatType.pigeon)
     await message.reply(text=f'Голубей подохло: {count}')
 
 
 # TODO: замутить вызов операции подсчета кол-ва постов на стене только 1 раз
 # TODO: приделать картинки к меседжу, если он есть
 async def get_anek(message: Message):
+    if message.get_args() == '':
+        await get_random_anek(message)
+        return
+    await get_anek_from_number(message)
+
+
+async def get_random_anek(message: Message):
     post_count = await vk.get_akb_post_count()
     offset = random.randint(0, post_count)
 
     funny = await vk.get_funny(vk_api.akb_group, 1, offset)
     if not funny:
-        await get_anek(message)
+        await get_random_anek(message)
         return
 
     anek = random.choice(funny)
@@ -287,10 +305,32 @@ async def get_anek(message: Message):
 
     create_task(delayed_delete(msg, 300))
     create_task(delayed_delete(message, 300))
-    db = Db()
-    await db.update_stat(StatType.anek)
+    async with Db() as db:
+        await db.update_stat(StatType.anek)
 
     print(f'анек номер {offset}')
+
+
+async def get_anek_from_number(message: Message):
+    post_count = await vk.get_akb_post_count()
+    try:
+        text = int(message.get_args())
+        if text > post_count:
+            await message.reply(f'Номер анека должен быть меньше чем {post_count}')
+            return
+    except ValueError or TypeError:
+        await message.reply(f'Сука число впиши')
+        return
+    funny = await vk.get_funny(vk_api.akb_group, 1, text)
+    if not funny:
+        await message.reply('Анека не существует')
+        return
+    anek = funny[0]
+    await message.reply(anek)
+
+
+async def get_last_anek(message: Message):
+    pass  # TODO
 
 
 async def kto_format(message: Message):
