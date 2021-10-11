@@ -136,6 +136,12 @@ async def dishwasher_timer(bot: Bot):
             flag = True
 
         await asyncio.sleep(3600)
+async def be_bra(message: Message):
+    be = ["бе", "бе.", "бе!", "бе?", "бе,"]
+    if message.text.lower() in be and message.from_user.id == users['acoola']:
+        await message.reply('бра')
+
+
 async def server_status(message: Message):
     text = 'Статус сервера: '
     is_online = await mc_server.is_server_open()
