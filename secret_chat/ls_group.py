@@ -2,11 +2,14 @@ import asyncio
 from typing import Optional
 
 from aiogram import Dispatcher, Bot
-from aiogram.types import Message, ContentTypes, InputFile
+from aiogram.types import Message, ContentTypes, InputFile, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+
+from secret_chat import mc_server
 from secret_chat.config import users, ls_group_id, test_group_id, frames_dir
 from datetime import datetime
 from utils import StickerFilter, nice_pfp_filter, message_sender
-from database import Db, Frame, StatType
+from asyncio import create_task
+from database import Db, StatType
 
 import re
 import random
@@ -162,7 +165,8 @@ async def all(message: Message):
             id_converter(users['yana'], 'Яна') +
             id_converter(users['anastasia'], 'Анастэйша') +
             id_converter(users['smoosya'], 'гача-ремикс') +
-            id_converter(users['sonya'], 'Вешалка'))
+            id_converter(users['sonya'], 'Вешалка') +
+            id_converter(users['karina'], 'Новичьок'))
     await message.reply(
         text=text,
     )
@@ -178,7 +182,8 @@ async def tmn(message: Message):
             id_converter(users['bigdown'], 'BigDown') +
             id_converter(users['yana'], 'Яна') +
             id_converter(users['anastasia'], 'Анастэйша') +
-            id_converter(users['smoosya'], 'гача-ремикс'))
+            id_converter(users['smoosya'], 'гача-ремикс') +
+            id_converter(users['karina'], 'Новичьок'))
     await message.reply(
         text=text,
     )
