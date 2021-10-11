@@ -3,7 +3,7 @@ import json
 import time
 from dataclasses import dataclass
 
-from secret_chat.config import json_path, ls_group_id
+from secret_chat.config import ls_group_id
 
 symbols = [
     '+',
