@@ -38,7 +38,7 @@ class Vk:
             response = await self._session.get(
                 url,
                 params={
-                    'v': '5.52',
+                    'v': '5.81',
                     'access_token': VK_TOKEN,
                     'owner_id': params.group_id,
                     'count': params.post_count,
