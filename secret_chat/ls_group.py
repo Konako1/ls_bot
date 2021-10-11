@@ -209,6 +209,16 @@ async def gamers(message: Message):
     )
 
 
+async def senat(message: Message):
+    text = (
+        id_converter(users['konako'], 'Цезарь') +
+        id_converter(users['gnome'], 'Август') +
+        id_converter(users['sonya'], 'Екатерина II') +
+        id_converter(users['gelya'], 'Елизовета Петровна')
+    )
+    await message.reply(text)
+
+
 async def commands(message: Message):
     text = f'Список комманд:\n' \
            f'/кто - Команда которая преобразует введенное место и время в опрос. /format for more.\n' \
