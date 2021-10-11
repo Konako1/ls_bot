@@ -17,7 +17,7 @@ class StickerFilter:
             return False
         # print(message.sticker.file_unique_id)
         if message.sticker.file_unique_id == self._sticker_id:
-            return self._kwargs
+            return self._kwargs or True
         return False
 
 
@@ -34,8 +34,8 @@ def nice_pfp_filter(message: Message) -> Union[dict, bool]:
     return {'words': text}
 
 
-async def message_sender(text_to_print: str, chat_id: int, bot: Bot):
-    await bot.send_message(text=text_to_print, chat_id=chat_id, disable_web_page_preview=True)
+async def message_sender(text_to_print: str, chat_id: int, bot: Bot, reply_markup=None):
+    await bot.send_message(text=text_to_print, chat_id=chat_id, disable_web_page_preview=True, reply_markup=reply_markup)
 
 
 async def delayed_delete(message: Message, sec: int):
