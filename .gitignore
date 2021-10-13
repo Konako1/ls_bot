@@ -141,3 +141,4 @@ cython_debug/
 .idea/
 *.json
 secret_chat/config.py
+ls.db
