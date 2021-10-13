@@ -1,8 +1,11 @@
 import asyncio
+from collections import Callable
+from re import Match
 from typing import Optional
 
 from aiogram import Dispatcher, Bot
-from aiogram.types import Message, ContentTypes, InputFile, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.types import Message, ContentTypes, InputFile, InlineKeyboardMarkup, \
+    InlineKeyboardButton, CallbackQuery, ChatMemberUpdated
 
 from secret_chat import mc_server
 from secret_chat.config import users, ls_group_id, test_group_id, frames_dir
@@ -246,6 +249,54 @@ async def commands(message: Message):
 # TODO: random bad apple video
 
 
+def somebody_left(event: ChatMemberUpdated):
+    return event.old_chat_member.status not in ("left", "kicked") \
+           and event.new_chat_member.status in ("left", "kicked") \
+           and not event.new_chat_member.user.is_bot
+
+
+def somebody_joined(event: ChatMemberUpdated):
+    return event.new_chat_member.status not in ("left", "kicked") \
+           and event.old_chat_member.status in ("left", "kicked") \
+           and not event.new_chat_member.user.is_bot
+
+
+def re_increment(match: Match[str]) -> str:
+    return str(int(match[1]) + 1)
+
+
+def re_decrement(match: Match[str]) -> str:
+    return str(int(match[1]) - 1)
+
+
+def get_new_title(old_title: str, sub_func: Callable[[Match[str]], str]) -> str:
+    if (new_title := re.sub(r"(\d+)", sub_func, old_title)) != old_title:  # anything changed
+        return new_title
+    raise ValueError
+
+
+async def novichok(event: ChatMemberUpdated):
+    try:
+        await event.bot.set_chat_title(event.chat.id, get_new_title(event.chat.title, re_increment))
+    except ValueError:
+        await event.bot.send_message(
+            event.chat.id,
+            "Кто-то зашёл в чат, но цифр в названии чата я не нашёл, поэтому хуй там я поменяю"
+            " вам название, ебитесь сами"
+        )
+
+
+async def uzhe_smesharik(event: ChatMemberUpdated):
+    try:
+        await event.bot.set_chat_title(event.chat.id, get_new_title(event.chat.title, re_decrement))
+    except ValueError:
+        await event.bot.send_message(
+            event.chat.id,
+            "Кто-то вышел из чата, но цифр в названии чата я не нашёл, поэтому хуй там я поменяю"
+            " вам название, ебитесь сами"
+        )
+
+
 def setup(dp: Dispatcher):
     dp.register_message_handler(delete_message, user_id=users['konako'], commands=['del'], chat_id=ls_group_id)
     dp.register_message_handler(all, commands=['all'])
@@ -261,3 +312,6 @@ def setup(dp: Dispatcher):
     dp.register_callback_query_handler(callback_handler, text=['yes', 'no'], chat_id=test_group_id)
     dp.register_message_handler(be_bra, regexp=re.compile(r'\bбе\b', re.I), chat_id=ls_group_id)
     dp.register_message_handler(server_status, commands='status', chat_id=ls_group_id)
+
+    dp.register_chat_member_handler(novichok, somebody_joined, chat_id=ls_group_id)
+    dp.register_chat_member_handler(uzhe_smesharik, somebody_left, chat_id=ls_group_id)
