@@ -3,8 +3,7 @@ import traveling_days
 from secret_chat import ls_group, config, test_group
 from asyncio import run, create_task
 from aiogram import Dispatcher, Bot
-from aiogram.types import BotCommand
-
+from aiogram.types import BotCommand, AllowedUpdates
 
 bot = Bot(config.TG_TOKEN, parse_mode='HTML')
 dp = Dispatcher(bot)
@@ -43,7 +42,7 @@ async def main():
     await on_startup()
     try:
         await dp.skip_updates()
-        await dp.start_polling()
+        await dp.start_polling(allowed_updates=AllowedUpdates.all())
     finally:
         await on_shutdown()
 
