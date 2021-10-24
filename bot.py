@@ -1,9 +1,12 @@
-from ls import tg_ls
-import traveling_days
-from secret_chat import ls_group, config, test_group
 from asyncio import run, create_task
+
 from aiogram import Dispatcher, Bot
 from aiogram.types import BotCommand, AllowedUpdates
+
+import traveling_days
+import handlers
+from ls import tg_ls
+from secret_chat import ls_group, config, test_group
 
 bot = Bot(config.TG_TOKEN, parse_mode='HTML')
 dp = Dispatcher(bot)
@@ -33,6 +36,7 @@ def register():
     tg_ls.setup(dp)
     test_group.setup(dp)
     ls_group.setup(dp)
+    handlers.register_all(dp)
 
 
 async def main():
