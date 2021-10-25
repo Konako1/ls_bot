@@ -67,6 +67,10 @@ async def nice_pfp(message: Message, words: Optional[list[str]] = None, is_nice:
         await add_pfp_in_db(message, db)
 
 
+async def simp_moment(message: Message):
+    await message.answer('@evgfilim1 @s1rius9')
+
+
 async def test(message: Message):
     arg = message.text
     text = message_saver(arg)
@@ -306,6 +310,7 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD0xAAAh3DcUk', is_nice=True), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD-BQAAs57cEk', is_nice=False), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD-hEAAuepaUk', is_nice=False), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
+    dp.register_message_handler(simp_moment, StickerFilter('AgADxhQAAvm9AUs'), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(test, user_id=users['acoola'], chat_id=ls_group_id)
     dp.register_message_handler(commands, commands=['commands', 'c'], chat_id=ls_group_id)
     dp.register_message_handler(get_pic_from_num, commands=['pic'], chat_id=[test_group_id, ls_group_id])
