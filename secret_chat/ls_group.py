@@ -156,6 +156,12 @@ async def server_status(message: Message):
     await message.reply(text)
 
 
+async def timecode(message: Message):
+    text = message.text
+    if '?t=' in text:
+        await message.answer('( таймкод на месте )')
+
+
 async def all(message: Message):
     chat_id = message.chat.id
     if chat_id < 0 and chat_id != -1001465546583:
@@ -307,6 +313,7 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(tmn, commands=['tmn'], chat_id=ls_group_id)
     dp.register_message_handler(gamers, commands=['gamers'], chat_id=ls_group_id)
     dp.register_message_handler(senat, commands=['senat'], chat_id=ls_group_id)
+    dp.register_message_handler(timecode, regexp=re.compile(r'https://youtu\.be/', re.I), chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, nice_pfp_filter, chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD0xAAAh3DcUk', is_nice=True), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD-BQAAs57cEk', is_nice=False), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
