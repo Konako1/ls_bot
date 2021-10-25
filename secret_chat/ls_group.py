@@ -58,7 +58,7 @@ async def nice_pfp(message: Message, words: Optional[list[str]] = None, is_nice:
         date_time = datetime.fromtimestamp(frame_data.datetime)
         msg_date = message.date
         if msg_date.hour == date_time.hour and msg_date.day == date_time.day:
-            await message.reply("Сказать что ава моего хозяина ахуенная (или нет) можно всего раз в час.")
+            await message.reply("Сказать что ава моего хозяина ахуенная можно всего раз в час.")
             return
 
         if await change_pfp(message, words, is_nice):
