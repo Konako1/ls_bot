@@ -1,12 +1,11 @@
 from asyncio import run, create_task
-
 from aiogram import Dispatcher, Bot
 from aiogram.types import BotCommand, AllowedUpdates
 
 import traveling_days
 import handlers
 from ls import tg_ls
-from secret_chat import ls_group, config, test_group
+from secret_chat import ls_group, config, test_group, autist
 
 bot = Bot(config.TG_TOKEN, parse_mode='HTML')
 dp = Dispatcher(bot)
