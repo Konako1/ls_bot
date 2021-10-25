@@ -31,7 +31,7 @@ async def delete_message(message: Message):
 
 
 async def change_pfp(message: Message, words: Optional[list[str]] = None, is_nice: Optional[bool] = None) -> bool:
-    if words is not None and 'не' in words or is_nice is False:
+    if words is not None and ('не' in words or 'not' in words) or is_nice is False:
         await message.bot.send_message(ls_group_id, 'Сорян, реально говно какое-то поставил, исправляюсь.')
         await message.bot.send_message(test_group_id, 'NeNicePfp_FUCKING_ALERT1337')
         return True
