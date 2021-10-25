@@ -306,6 +306,7 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(all, commands=['all'])
     dp.register_message_handler(tmn, commands=['tmn'], chat_id=ls_group_id)
     dp.register_message_handler(gamers, commands=['gamers'], chat_id=ls_group_id)
+    dp.register_message_handler(senat, commands=['senat'], chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, nice_pfp_filter, chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD0xAAAh3DcUk', is_nice=True), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD-BQAAs57cEk', is_nice=False), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
