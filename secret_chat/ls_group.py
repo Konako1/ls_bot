@@ -38,9 +38,14 @@ async def change_pfp(message: Message, words: Optional[list[str]] = None, is_nic
     return False
 
 
-async def add_pfp_in_db(message: Message, db: Db):
+async def get_frame_from_bio(message: Message) -> int:
     info = await message.bot.get_chat(users['konako'])
     frame = info.bio.rsplit(" ", maxsplit=1)[1]
+    return int(frame)
+
+
+async def add_pfp_in_db(message: Message, db: Db):
+    frame = await get_frame_from_bio(message)
     await db.add_frame(int(frame), message.date.timestamp())
     await message.bot.send_message(ls_group_id, 'спс')
     await db.update_stat(StatType().nice_pfp)
