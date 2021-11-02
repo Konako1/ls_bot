@@ -203,3 +203,18 @@ class Db:
         if row is not None:
             return row[0]
         return None
+
+    async def remove_frame(self, frame: int) -> Optional[bool]:
+        cur = await self._conn.execute('SELECT count FROM frames WHERE frame=?',
+                                       (frame, ))
+        row = await cur.fetchone()
+        if row is None:
+            return None
+        if int(row[0]) == 1:
+            await self._conn.execute('DELETE FROM frames WHERE frame=?',
+                                     (frame, ))
+            return True
+        if int(row[0]) > 1:
+            await self._conn.execute('UPDATE frames SET count=?, datetime=? WHERE frame=?',
+                                     (row[0] - 1, 0.0, frame, ))
+            return True

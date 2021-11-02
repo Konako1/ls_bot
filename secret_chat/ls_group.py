@@ -67,6 +67,16 @@ async def nice_pfp(message: Message, words: Optional[list[str]] = None, is_nice:
         await add_pfp_in_db(message, db)
 
 
+async def nice_pfp_rollback(message: Message):
+    frame = await get_frame_from_bio(message)
+    async with Db() as db:
+        answer = await db.remove_frame(frame)
+        if answer is None:
+            await message.reply('Такой фрейм еще не был сохранен')
+        if answer:
+            await message.reply('Удалено')
+
+
 async def simp_moment(message: Message):
     await message.answer('@evgfilim1 @s1rius9')
 
@@ -322,7 +332,7 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(test, user_id=users['acoola'], chat_id=ls_group_id)
     dp.register_message_handler(commands, commands=['commands', 'c'], chat_id=ls_group_id)
     dp.register_message_handler(get_pic_from_num, commands=['pic'], chat_id=[test_group_id, ls_group_id])
-    dp.register_callback_query_handler(callback_handler, text=['yes', 'no'], chat_id=test_group_id)
+    dp.register_message_handler(nice_pfp_rollback, commands=['rollback'], chat_id=ls_group_id, user_id=users['konako'])
     dp.register_message_handler(be_bra, regexp=re.compile(r'\bбе\b', re.I), chat_id=ls_group_id)
     dp.register_message_handler(server_status, commands='status', chat_id=ls_group_id)
 
