@@ -96,6 +96,14 @@ class Db:
                                  (text, ))
         await self._conn.commit()
 
+    async def add_devil_trigger(self, file_id: str) -> bool:
+        if file_id is None:
+            return False
+        await self._conn.execute('INSERT INTO devil_triggers(file_id) VALUES (?)',
+                                 (file_id, ))
+        await self._conn.commit()
+        return True
+
     async def update_num(self, num: float):
         sign = 'positive' if num > 0 else 'negative'
         saved_num = await self.get_num(sign)
@@ -218,3 +226,8 @@ class Db:
             await self._conn.execute('UPDATE frames SET count=?, datetime=? WHERE frame=?',
                                      (row[0] - 1, 0.0, frame, ))
             return True
+
+    async def get_all_devil_triggers(self) -> list[tuple[str]]:
+        cur = await self._conn.execute('SELECT file_id FROM devil_triggers')
+        row = await cur.fetchall()
+        return row

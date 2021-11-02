@@ -1,5 +1,7 @@
+from pprint import pprint
+
 from aiogram import Dispatcher, Bot
-from aiogram.types import Message, InputFile, MediaGroup
+from aiogram.types import Message, InputFile, MediaGroup, ContentTypes
 
 from secret_chat.config import ls_group_id, test_group_id, frames_dir
 from random import randint
@@ -125,6 +127,19 @@ async def get_say_statistics(message: Message):
     )
 
 
+async def add_devil_trigger_to_db(message: Message):
+    async with Db() as db:
+        if message.reply_to_message is None or message.reply_to_message.audio is None:
+            await message.reply('Реплайни аудио девил триггера')
+            return
+        answer = await db.add_devil_trigger(message.reply_to_message.audio.file_id)
+
+    if answer:
+        await message.reply('Музяка добавлена')
+    else:
+        await message.reply('Чето пошло по пизде')
+
+
 async def help(message: Message):
     await message.bot.send_message(
         text=f"/message - send message to test_group\n"
@@ -142,4 +157,5 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(add_paste, commands=['add'], chat_id=test_group_id)
     dp.register_message_handler(nice_pfp_counter, commands=['nice_pfp', 'nice_ava'], chat_id=test_group_id)
     dp.register_message_handler(get_similar_nice_pfp, commands=['get_similar_pfp'], chat_id=test_group_id)
-    dp.register_message_handler(help, commands=['help', 'commands'], chat_id=test_group_id)
+    dp.register_message_handler(add_devil_trigger_to_db, commands=['dt'], chat_id=test_group_id)
+    dp.register_message_handler(help, commands=['help', 'commands', 'c'], chat_id=test_group_id)
