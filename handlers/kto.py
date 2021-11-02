@@ -144,7 +144,7 @@ async def process_kto(message: Message) -> None:
         )
     if args.lower() in ("ттд", "ttd", "openttd"):
         return await send_poll(
-            message.chat.id, args, None, message.from_user.first_name, ("Ахахахахахахах", "Не я")
+            message.chat.id, args, None, message.from_user.first_name, ("Ахахахахахахах", "ХАХХАХАХАХХАХАХ")
         )
     if args.lower() == "куда а я по съёбам":
         await message.chat.unban(message.from_user.id)
