@@ -155,7 +155,7 @@ class Db:
         return rows
 
     async def get_last_frame(self) -> Optional[Frame]:
-        cur = await self._conn.execute('SELECT frame, count, datetime FROM frames ORDER BY id DESC LIMIT 1')
+        cur = await self._conn.execute('SELECT frame, count, datetime FROM frames ORDER BY datetime DESC LIMIT 1')
         row = await cur.fetchone()
         if row is not None:
             return Frame(
