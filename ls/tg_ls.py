@@ -18,7 +18,7 @@ from database import StatType, StickerInfo
 
 vk = vk_api.Vk()
 
-callback_data = CallbackData('anek', 'action' 'anek_id')
+callback_data = CallbackData('anek', 'anek_id', 'action')
 
 
 async def say(message: Message):
