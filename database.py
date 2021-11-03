@@ -157,7 +157,7 @@ class Db:
             await self._conn.execute('INSERT INTO aneks(anek_id, user_id, is_like) VALUES (?,?,?)',
                                      (anek_id, user_id, is_like))
             return False
-        await self._conn.execute('UPDATE aneks SET is_like=? WHERE (user_id=?, anek_id=?)',
+        await self._conn.execute('UPDATE aneks SET is_like=? WHERE user_id=? AND anek_id=?',
                                  (is_like, user_id, anek_id,))
         return True
 
@@ -230,7 +230,7 @@ class Db:
         return None
 
     async def get_user_answer_for_anek(self, user_id: int, anek_id: int) -> Optional[bool]:
-        cur = await self._conn.execute('SELECT is_like FROM aneks WHERE (user_id=?, anek_id=?)',
+        cur = await self._conn.execute('SELECT is_like FROM aneks WHERE user_id=? AND anek_id=?',
                                        (user_id, anek_id))
         row = await cur.fetchone()
         if row is None:

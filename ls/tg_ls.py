@@ -18,7 +18,7 @@ from database import StatType, StickerInfo
 
 vk = vk_api.Vk()
 
-callback_data = CallbackData('anek', 'anek_id', 'action')
+anek_cb = CallbackData('anek', 'anek_id', 'action')
 
 
 async def say(message: Message):
@@ -173,9 +173,9 @@ async def get_anek_from_number(message: Message):
 async def create_inline_keyboard(anek_id: int) -> InlineKeyboardMarkup:
     haha_count, not_haha_count = await get_anek_data(anek_id)
     kb = InlineKeyboardMarkup(row_width=3, ).row(
-        InlineKeyboardButton(f'{haha_count}x Haha', callback_data=callback_data.new(anek_id=anek_id, action='haha')),
-        InlineKeyboardButton(f"{not_haha_count}x Hahan't", callback_data=callback_data.new(anek_id=anek_id, action='not_haha')),
-        InlineKeyboardButton('Оставить', callback_data=callback_data.new(anek_id=anek_id, action='save')),
+        InlineKeyboardButton(f'{haha_count}x Haha', callback_data=anek_cb.new(anek_id=anek_id, action='haha')),
+        InlineKeyboardButton(f"{not_haha_count}x Hahan't", callback_data=anek_cb.new(anek_id=anek_id, action='not_haha')),
+        InlineKeyboardButton('Оставить', callback_data=anek_cb.new(anek_id=anek_id, action='save')),
     )
     return kb
 
@@ -197,20 +197,20 @@ async def get_anek_data(anek_id: int) -> tuple[int, int]:
     return haha, not_haha
 
 
-async def haha_handler(query: CallbackQuery, callback: Dict[str, str]):
+async def haha_handler(query: CallbackQuery, callback_data: Dict[str, str]):
     await query.answer('Hihi')
     async with Db() as db:
-        anek_id = int(callback['anek_id'])
+        anek_id = int(callback_data['anek_id'])
         await db.update_anek_data(anek_id, query.from_user.id, True)
 
     new_kb = await create_inline_keyboard(anek_id)
     await query.message.edit_reply_markup(new_kb)
 
 
-async def not_haha_handler(query: CallbackQuery, callback: Dict[str, str]):
+async def not_haha_handler(query: CallbackQuery, callback_data: Dict[str, str]):
     await query.answer('No hihi :(')
     async with Db() as db:
-        anek_id = int(callback['anek_id'])
+        anek_id = int(callback_data['anek_id'])
         await db.update_anek_data(anek_id, query.from_user.id, False)
 
     new_kb = await create_inline_keyboard(anek_id)
@@ -241,5 +241,5 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(get_graves_count, commands=['graveyard'])
     dp.register_message_handler(get_anek, commands=['anek'])
     dp.register_message_handler(features, commands=['features'])
-    dp.callback_query_handler(haha_handler, callback_data.filter(action='haha'))
-    dp.callback_query_handler(not_haha_handler, callback_data.filter(action='not_haha'))
+    dp.register_callback_query_handler(haha_handler, anek_cb.filter(action='haha'))
+    dp.register_callback_query_handler(not_haha_handler, anek_cb.filter(action='not_haha'))
