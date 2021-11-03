@@ -60,6 +60,11 @@ class Db:
         await self._conn.execute('CREATE TABLE IF NOT EXISTS stat(stat INTEGER PRIMARY KEY NOT NULL,'
                                  'count INTEGER NOT NULL)')
         await self._conn.execute('CREATE TABLE IF NOT EXISTS pastes(paste TEXT PRIMARY KEY NOT NULL)')
+        await self._conn.execute('CREATE TABLE IF NOT EXISTS aneks(anek_id INTEGER NOT NULL,'
+                                 'user_id INTEGER NOT NULL,'
+                                 'is_like INTEGER NOT NULL DEFAULT 1,'
+                                 'CHECK (is_like IN (1, 0)),'
+                                 'PRIMARY KEY (anek_id, user_id))')
         await self._conn.commit()
 
     async def close(self):
@@ -136,6 +141,18 @@ class Db:
                                      (stat_count + 1, stat_type))
         await self._conn.commit()
 
+    async def update_anek_data(self, anek_id: int, user_id: int, is_like: bool) -> bool:
+        is_like = 1 if is_like else 0
+        saved_is_like = await self.get_user_answer_for_anek(user_id, anek_id)
+
+        if saved_is_like is None:
+            await self._conn.execute('INSERT INTO aneks(anek_id, user_id, is_like) VALUES (?,?,?)',
+                                     (anek_id, user_id, is_like))
+            return False
+        await self._conn.execute('UPDATE aneks SET is_like=? WHERE (user_id=?, anek_id=?)',
+                                 (is_like, user_id, anek_id,))
+        return True
+
     async def get_frame_stat(self, frame: int) -> Optional[Frame]:
         cur = await self._conn.execute('SELECT count, datetime FROM frames WHERE frame=?',
                                        (frame, ))
@@ -203,6 +220,22 @@ class Db:
         if row is not None:
             return row[0]
         return None
+
+    async def get_user_answer_for_anek(self, user_id: int, anek_id: int) -> Optional[bool]:
+        cur = await self._conn.execute('SELECT is_like FROM aneks WHERE (user_id=?, anek_id=?)',
+                                       (user_id, anek_id))
+        row = await cur.fetchone()
+        if row is None:
+            return None
+        if int(row[0]) is 1:
+            return True
+        return False
+
+    async def get_anek_data(self, anek_id: int) -> Optional[list[tuple]]:
+        cur = await self._conn.execute('SELECT is_like FROM aneks WHERE anek_id=?',
+                                       (anek_id,))
+        rows = await cur.fetchall()
+        return rows
 
     async def remove_frame(self, frame: int) -> Optional[bool]:
         cur = await self._conn.execute('SELECT count FROM frames WHERE frame=?',
