@@ -179,6 +179,17 @@ async def timecode(message: Message):
         await message.answer('( таймкод на месте )')
 
 
+async def devil_trigger(message: Message):
+    async with Db() as db:
+        all_devil_triggers = await db.get_all_devil_triggers()
+
+    if not all_devil_triggers:
+        await message_sender('Пополни базу далбаеб', test_group_id, message.bot)
+        return
+    audio_file_id = random.choice(all_devil_triggers)[0]
+    await message.answer_audio(audio_file_id)
+
+
 async def all(message: Message):
     chat_id = message.chat.id
     if chat_id < 0 and chat_id != -1001465546583:
@@ -336,6 +347,8 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD-BQAAs57cEk', is_nice=False), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD-hEAAuepaUk', is_nice=False), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(simp_moment, StickerFilter('AgADxhQAAvm9AUs'), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
+    dp.register_message_handler(devil_trigger, StickerFilter('AgAD_w4AAo5aWEk'), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
+    dp.register_message_handler(devil_trigger, StickerFilter('AgADpRQAAt8mkEs'), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(test, user_id=users['acoola'], chat_id=ls_group_id)
     dp.register_message_handler(commands, commands=['commands', 'c'], chat_id=ls_group_id)
     dp.register_message_handler(get_pic_from_num, commands=['pic'], chat_id=[test_group_id, ls_group_id])
