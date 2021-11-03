@@ -174,7 +174,7 @@ async def create_inline_keyboard(anek_id: int) -> InlineKeyboardMarkup:
     haha_count, not_haha_count = await get_anek_data(anek_id)
     kb = InlineKeyboardMarkup(row_width=3, ).row(
         InlineKeyboardButton(f'{haha_count}x Haha', callback_data=callback_data.new(anek_id=anek_id, action='haha')),
-        InlineKeyboardButton(f"{not_haha_count}x Haha'nt", callback_data=callback_data.new(anek_id=anek_id, action='not_haha')),
+        InlineKeyboardButton(f"{not_haha_count}x Hahan't", callback_data=callback_data.new(anek_id=anek_id, action='not_haha')),
         InlineKeyboardButton('Оставить', callback_data=callback_data.new(anek_id=anek_id, action='save')),
     )
     return kb
@@ -198,8 +198,8 @@ async def get_anek_data(anek_id: int) -> tuple[int, int]:
 
 
 async def haha_handler(query: CallbackQuery, callback: Dict[str, str]):
+    await query.answer('Hihi')
     async with Db() as db:
-        await query.answer()
         anek_id = int(callback['anek_id'])
         await db.update_anek_data(anek_id, query.from_user.id, True)
 
@@ -208,8 +208,8 @@ async def haha_handler(query: CallbackQuery, callback: Dict[str, str]):
 
 
 async def not_haha_handler(query: CallbackQuery, callback: Dict[str, str]):
+    await query.answer('No hihi :(')
     async with Db() as db:
-        await query.answer()
         anek_id = int(callback['anek_id'])
         await db.update_anek_data(anek_id, query.from_user.id, False)
 
@@ -241,5 +241,5 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(get_graves_count, commands=['graveyard'])
     dp.register_message_handler(get_anek, commands=['anek'])
     dp.register_message_handler(features, commands=['features'])
-    dp.callback_query_handler(haha_handler, callback_data.filter(action=['haha']))
-    dp.callback_query_handler(not_haha_handler, callback_data.filter(action=['not_haha']))
+    dp.callback_query_handler(haha_handler, callback_data.filter(action='haha'))
+    dp.callback_query_handler(not_haha_handler, callback_data.filter(action='not_haha'))
