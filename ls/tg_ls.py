@@ -1,21 +1,24 @@
 from datetime import datetime
 import random
-
+from typing import Dict
 import vk_api
 from database import Db
 from utils import delayed_delete
 from secret_chat.simple_math import math
 from secret_chat.test_group import get_say_statistics, get_num_as_pow
 from aiogram import Dispatcher
-from aiogram.types import Message, ContentTypes, InputFile
+from aiogram.types import Message, ContentTypes, InputFile, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from aiogram.dispatcher.filters import Text
 from aiogram.utils.exceptions import MessageTextIsEmpty
+from aiogram.utils.callback_data import CallbackData
 from secret_chat.config import test_group_id, spring_05_preview_direction
 from asyncio import create_task
 from utils import StickerFilter
 from database import StatType, StickerInfo
 
 vk = vk_api.Vk()
+
+callback_data = CallbackData('anek_id', 'action')
 
 
 async def say(message: Message):
@@ -127,40 +130,95 @@ async def get_anek(message: Message):
 
 async def get_random_anek(message: Message):
     post_count = await vk.get_akb_post_count()
-    offset = random.randint(0, post_count)
+    anek_id = random.randint(0, post_count)
 
-    funny = await vk.get_funny(vk_api.akb_group, 1, offset)
+    funny = await vk.get_funny(vk_api.akb_group, 1, anek_id)
     if not funny:
         await get_random_anek(message)
         return
 
     anek = random.choice(funny)
-    msg = await message.reply(anek)
+    inline = await create_inline_keyboard(anek_id)
+    msg = await message.reply(anek, reply_markup=inline)
 
     create_task(delayed_delete(msg, 300))
     create_task(delayed_delete(message, 300))
     async with Db() as db:
         await db.update_stat(StatType.anek)
 
-    print(f'анек номер {offset}')
+    print(f'анек номер {anek_id}')
 
 
 async def get_anek_from_number(message: Message):
     post_count = await vk.get_akb_post_count()
     try:
-        text = int(message.get_args())
-        if text > post_count:
+        anek_id = int(message.get_args())
+        if anek_id > post_count:
             await message.reply(f'Номер анека должен быть меньше чем {post_count}')
             return
     except ValueError or TypeError:
         await message.reply(f'Сука число впиши')
         return
-    funny = await vk.get_funny(vk_api.akb_group, 1, text)
+    funny = await vk.get_funny(vk_api.akb_group, 1, anek_id)
     if not funny:
         await message.reply('Анека не существует')
         return
+    inline = await create_inline_keyboard(anek_id)
     anek = funny[0]
-    await message.reply(anek)
+    await message.reply(anek, reply_markup=inline)
+    async with Db() as db:
+        await db.update_stat(StatType.anek)
+
+
+async def create_inline_keyboard(anek_id: int) -> InlineKeyboardMarkup:
+    haha_count, not_haha_count = await get_anek_data(anek_id)
+    kb = InlineKeyboardMarkup(row_width=3, ).row(
+        InlineKeyboardButton(f'{haha_count}x Haha', callback_data=callback_data.new(anek_id=anek_id, action='haha')),
+        InlineKeyboardButton(f"{not_haha_count}x Haha'nt", callback_data=callback_data.new(anek_id=anek_id, action='not_haha')),
+        InlineKeyboardButton('Оставить', callback_data=callback_data.new(anek_id=anek_id, action='save')),
+    )
+    return kb
+
+
+async def get_anek_data(anek_id: int) -> tuple[int, int]:
+    haha = 0
+    not_haha = 0
+
+    async with Db() as db:
+        data = await db.get_anek_data(anek_id)  # type: list[tuple]
+        if data is None:
+            return 0, 0
+
+        for reaction in data:
+            if int(reaction[0]) == 1:
+                haha += 1
+            else:
+                not_haha += 1
+    return haha, not_haha
+
+
+async def haha_handler(query: CallbackQuery, callback: Dict[str, str]):
+    async with Db() as db:
+        await query.answer()
+        anek_id = int(callback['anek_id'])
+        await db.update_anek_data(anek_id, query.from_user.id, True)
+
+    new_kb = await create_inline_keyboard(anek_id)
+    await query.message.edit_reply_markup(new_kb)
+
+
+async def not_haha_handler(query: CallbackQuery, callback: Dict[str, str]):
+    async with Db() as db:
+        await query.answer()
+        anek_id = int(callback['anek_id'])
+        await db.update_anek_data(anek_id, query.from_user.id, False)
+
+    new_kb = await create_inline_keyboard(anek_id)
+    await query.message.edit_reply_markup(new_kb)
+
+
+async def save_anek(query: CallbackQuery, callback: Dict[str, str]):
+    await query.answer('WIP')
 
 
 async def get_last_anek(message: Message):
@@ -183,3 +241,5 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(get_graves_count, commands=['graveyard'])
     dp.register_message_handler(get_anek, commands=['anek'])
     dp.register_message_handler(features, commands=['features'])
+    dp.callback_query_handler(haha_handler, callback_data.filter(action=['haha']))
+    dp.callback_query_handler(not_haha_handler, callback_data.filter(action=['not_haha']))
