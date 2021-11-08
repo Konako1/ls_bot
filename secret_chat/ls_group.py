@@ -179,6 +179,68 @@ async def timecode(message: Message):
         await message.answer('( таймкод на месте )')
 
 
+async def unsilence_delay(message: Message, sec: int):
+    await asyncio.sleep(sec)
+    await unsilence(message)
+
+
+async def silence(message: Message):
+    args = message.get_args()
+
+    if not args.isdigit():
+        await message.reply('Укажи время в секундах')
+        return
+
+    if int(args) > 600:
+        await message.reply('леее, не больше 10 минут')
+        return
+
+    try:
+        await message.chat.restrict(message.reply_to_message.from_user.id, can_send_messages=False)
+    except AttributeError as e:
+        await message.reply('Реплайни сообщение, дебил')
+        return
+    except CantRestrictChatOwner as e:
+        await message.reply('Нельзя мутить создателя беседы')
+        return
+    except UserIsAnAdministratorOfTheChat as e:
+        await message.reply('Нельзя мутить админа беседы, которого промотил не бот')
+        return
+    except CantRestrictSelf as e:
+        await message.reply('Пошел нахуй.')
+        return
+
+    async with Db() as db:
+        is_already_silenced = await db.update_silences(message.reply_to_message.from_user.id, 1)
+    if is_already_silenced:
+        await message.reply('Пользователь уже в муте')
+        return
+    await message.reply('Этот клоун теперь в муте')
+    create_task(unsilence_delay(message, int(args)))
+
+
+async def unsilence(message: Message):
+    user_id = message.reply_to_message.from_user.id
+    if message.text == '/unsilence':
+        async with Db() as db:
+            is_already_unsilenced = await db.update_silences(user_id, 0)
+        if is_already_unsilenced:
+            await message.reply('Пользователь еще не в муте')
+            return
+    await message.chat.restrict(
+        user_id,
+        can_send_messages=True,
+        can_send_media_messages=True,
+        can_send_other_messages=True,
+        can_add_web_page_previews=True,
+    )
+    if user_id == users['konako'] or user_id == users['evg'] or user_id == users['yura']:
+        await promote(message, 1)
+    else:
+        await promote(message, 0)
+    await message.answer(f'Пользователь @{message.reply_to_message.from_user.username} больше не в муте')
+
+
 async def devil_trigger(message: Message):
     async with Db() as db:
         all_devil_triggers = await db.get_all_devil_triggers()
@@ -188,6 +250,40 @@ async def devil_trigger(message: Message):
         return
     audio_file_id = random.choice(all_devil_triggers)[0]
     await message.answer_audio(audio_file_id)
+
+
+async def promote(message: Message, set_args: int = None):
+    args = message.get_args()
+    if message.reply_to_message is None:
+        await message.reply('Перешли сообщение дуд')
+        return
+    user_id = message.reply_to_message.from_user.id
+    chat_id = message.chat.id
+    if args is None or set_args == 0:
+        await message.bot.promote_chat_member(
+            chat_id,
+            user_id,
+            can_invite_users=True,
+            can_pin_messages=True,
+            can_change_info=True,
+            can_manage_chat=True,
+            can_manage_voice_chats=True,
+        )
+    if args == '1' or set_args == 1:
+        await message.bot.promote_chat_member(
+            chat_id,
+            user_id,
+            can_invite_users=True,
+            can_pin_messages=True,
+            can_change_info=True,
+            can_manage_chat=True,
+            can_manage_voice_chats=True,
+            can_promote_members=True,
+            can_delete_messages=True,
+            can_restrict_members=True
+        )
+    if set_args is None:
+        await message.delete()
 
 
 async def all(message: Message):
@@ -355,6 +451,8 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(nice_pfp_rollback, commands=['rollback'], chat_id=ls_group_id, user_id=users['konako'])
     dp.register_message_handler(be_bra, regexp=re.compile(r'\bбе\b', re.I), chat_id=ls_group_id)
     dp.register_message_handler(server_status, commands='status', chat_id=ls_group_id)
-
+    dp.register_message_handler(silence, commands=['silence'], chat_id=ls_group_id, user_id=users['konako'])
+    dp.register_message_handler(unsilence, commands=['unsilence'], chat_id=ls_group_id, user_id=users['konako'])
+    dp.register_message_handler(promote, commands=['promote'], chat_id=ls_group_id, user_id=users['konako'])
     dp.register_chat_member_handler(novichok, somebody_joined, chat_id=ls_group_id)
     dp.register_chat_member_handler(uzhe_smesharik, somebody_left, chat_id=ls_group_id)
