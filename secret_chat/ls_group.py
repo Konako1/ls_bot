@@ -4,8 +4,10 @@ from re import Match
 from typing import Optional
 
 from aiogram import Dispatcher, Bot
+from aiogram.dispatcher.filters import Text
 from aiogram.types import Message, ContentTypes, InputFile, InlineKeyboardMarkup, \
     InlineKeyboardButton, CallbackQuery, ChatMemberUpdated
+from aiogram.utils.exceptions import CantRestrictChatOwner, UserIsAnAdministratorOfTheChat, CantRestrictSelf
 
 from secret_chat import mc_server
 from secret_chat.config import users, ls_group_id, test_group_id, frames_dir
@@ -162,7 +164,7 @@ async def dishwasher_timer(bot: Bot):
 
 async def be_bra(message: Message):
     be = ["бе", "бе.", "бе!", "бе?", "бе,"]
-    if message.text.lower() in be and message.from_user.id == users['acoola']:
+    if any(item in message.text.lower() for item in be):
         await message.reply('бра')
 
 
@@ -363,12 +365,18 @@ async def commands(message: Message):
            f'/tmn - Пинг всех участников из Тюмени.\n' \
            f'/gamers - Пинг GAYмеров.\n' \
            f'/status - Статус майнкрафт сервера.\n' \
+           f'/senat - Пингует челов, которые участвуют в споре.\n' \
            f'/pasta - Рандомная паста.\n' \
            f'/say - Бесполезная матеша.\n' \
            f'/graveyard - Количество голубей на кладбище.\n' \
+           f'/rollback - удаляет ласт фрейм из найс ав.\n' \
+           f'/silence - запрещает пользователю писать в чат.\n' \
+           f'/unsilence - разрешает пользователю писать в чат.\n' \
            f'Фичи:\n' \
            f'Словосочетания "голубь сдох" или "минус голубь" добавят одного голубя на кладбище.\n' \
-           f'С некоторым шансом бот может кинуть медведя во время спама медведей.'
+           f'С некоторым шансом бот может кинуть медведя во время спама медведей.\n' \
+           f'Кидает музяку на карточку Девил триггера.\n' \
+           f'Меняет название конфы при заходе и ливе.\n'
 
     await message.answer(
         text=text,
@@ -432,7 +440,7 @@ async def uzhe_smesharik(event: ChatMemberUpdated):
 
 
 def setup(dp: Dispatcher):
-    dp.register_message_handler(delete_message, user_id=users['konako'], commands=['del'], chat_id=ls_group_id)
+    dp.register_message_handler(delete_message, user_id=[users['konako'], users['gnome']], commands=['del'], chat_id=ls_group_id)
     dp.register_message_handler(all, commands=['all'])
     dp.register_message_handler(tmn, commands=['tmn'], chat_id=ls_group_id)
     dp.register_message_handler(gamers, commands=['gamers'], chat_id=ls_group_id)
