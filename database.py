@@ -65,6 +65,9 @@ class Db:
                                  'is_like INTEGER NOT NULL DEFAULT 1,'
                                  'CHECK (is_like IN (1, 0)),'
                                  'PRIMARY KEY (anek_id, user_id))')
+        await self._conn.execute('CREATE TABLE IF NOT EXISTS silences(user_id INTEGER PRIMARY KEY NOT NULL,'
+                                 'is_silenced INTEGER NOT NULL,'
+                                 'CHECK (is_silenced IN (1, 0)))')
         await self._conn.commit()
 
     async def close(self):
@@ -106,6 +109,14 @@ class Db:
             return False
         await self._conn.execute('INSERT INTO devil_triggers(file_id) VALUES (?)',
                                  (file_id, ))
+        await self._conn.commit()
+        return True
+
+    async def add_user_in_silences(self, user_id: int, is_silence_int: int):
+        if user_id is None:
+            return False
+        await self._conn.execute('INSERT INTO silences(user_id, is_silenced) VALUES (?, ?)',
+                                 (user_id, is_silence_int))
         await self._conn.commit()
         return True
 
@@ -160,6 +171,17 @@ class Db:
         await self._conn.execute('UPDATE aneks SET is_like=? WHERE user_id=? AND anek_id=?',
                                  (is_like, user_id, anek_id,))
         return True
+
+    async def update_silences(self, user_id: int, is_silence: bool) -> Optional[bool]:
+        is_silence_int = 1 if is_silence is True else 0
+        is_user_silenced = await self.get_user_silence_info(user_id)
+        if is_user_silenced is None:
+            await self.add_user_in_silences(user_id, is_silence_int)
+        if is_silence == is_user_silenced:
+            return True
+        await self._conn.execute('UPDATE silences SET is_silenced=? WHERE user_id=?',
+                                 (is_silence_int, user_id, ))
+        return False
 
     async def get_frame_stat(self, frame: int) -> Optional[Frame]:
         cur = await self._conn.execute('SELECT count, datetime FROM frames WHERE frame=?',
@@ -264,3 +286,11 @@ class Db:
         cur = await self._conn.execute('SELECT file_id FROM devil_triggers')
         row = await cur.fetchall()
         return row
+
+    async def get_user_silence_info(self, user_id: int) -> Optional[bool]:
+        cur = await self._conn.execute('SELECT is_silenced FROM silences WHERE user_id=?',
+                                       (user_id, ))
+        row = await cur.fetchone()
+        if row is None:
+            return None
+        return True if int(row[0]) is 1 else False
