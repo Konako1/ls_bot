@@ -6,7 +6,7 @@ from typing import Optional
 from aiogram import Dispatcher, Bot
 from aiogram.dispatcher.filters import Text
 from aiogram.types import Message, ContentTypes, InputFile, InlineKeyboardMarkup, \
-    InlineKeyboardButton, CallbackQuery, ChatMemberUpdated
+    InlineKeyboardButton, CallbackQuery, ChatMemberUpdated, ChatMemberAdministrator
 from aiogram.utils.exceptions import CantRestrictChatOwner, UserIsAnAdministratorOfTheChat, CantRestrictSelf
 
 from secret_chat import mc_server
@@ -14,7 +14,7 @@ from secret_chat.config import users, ls_group_id, test_group_id, frames_dir
 from datetime import datetime
 from utils import StickerFilter, nice_pfp_filter, message_sender
 from asyncio import create_task
-from database import Db, StatType
+from database import Db, StatType, SilenceInfo
 
 import re
 import random
@@ -186,49 +186,65 @@ async def unsilence_delay(message: Message, sec: int):
     await unsilence(message)
 
 
-async def silence(message: Message):
-    args = message.get_args()
-
-    if not args.isdigit():
-        await message.reply('Укажи время в секундах')
-        return
-
-    if int(args) > 600:
-        await message.reply('леее, не больше 10 минут')
-        return
-
+async def restrict_user(message: Message) -> bool:
     try:
         await message.chat.restrict(message.reply_to_message.from_user.id, can_send_messages=False)
     except AttributeError as e:
         await message.reply('Реплайни сообщение, дебил')
-        return
+        return False
     except CantRestrictChatOwner as e:
         await message.reply('Нельзя мутить создателя беседы')
-        return
+        return False
     except UserIsAnAdministratorOfTheChat as e:
         await message.reply('Нельзя мутить админа беседы, которого промотил не бот')
-        return
+        return False
     except CantRestrictSelf as e:
         await message.reply('Пошел нахуй.')
-        return
+        return False
+    return True
 
+
+async def get_member_title(message: Message) -> str:
+    member = await message.chat.get_member(message.reply_to_message.from_user.id)
+    if isinstance(member, ChatMemberAdministrator):
+        title = member.custom_title
+    else:
+        title = ''
+    return title
+
+
+async def silence_info_check(user_id: int, title: str = None) -> SilenceInfo:
     async with Db() as db:
-        is_already_silenced = await db.update_silences(message.reply_to_message.from_user.id, 1)
-    if is_already_silenced:
-        await message.reply('Пользователь уже в муте')
+        silence_info = await db.get_user_silence_info(user_id)
+        if title is None:
+            title = silence_info.title
+        if silence_info.is_silenced is None:
+            await db.add_user_in_silences(user_id, 0, title)
+            return SilenceInfo(None, None)
+        return silence_info
+
+
+async def set_custom_title(message: Message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    gender = 'ты'
+    custom_title = message.get_args()
+    if len(custom_title) > 16:
+        await message.reply(f'Соси жопу, сильно дохуя')
         return
-    await message.reply('Этот клоун теперь в муте')
-    create_task(unsilence_delay(message, int(args)))
+    if custom_title == '':
+        custom_title = 'Admin'
+    if message.reply_to_message is not None:
+        user_id = message.reply_to_message.from_user.id
+        gender = message.reply_to_message.from_user.username
+    is_success = await message.bot.set_chat_administrator_custom_title(chat_id, user_id, custom_title)
+    if is_success:
+        await message.reply(f'Теперь {gender} {custom_title}')
 
 
-async def unsilence(message: Message):
+async def unrestrict_and_promote_user(message: Message, custom_title: str):
     user_id = message.reply_to_message.from_user.id
-    if message.text == '/unsilence':
-        async with Db() as db:
-            is_already_unsilenced = await db.update_silences(user_id, 0)
-        if is_already_unsilenced:
-            await message.reply('Пользователь еще не в муте')
-            return
+    chat_id = message.chat.id
     await message.chat.restrict(
         user_id,
         can_send_messages=True,
@@ -240,6 +256,45 @@ async def unsilence(message: Message):
         await promote(message, 1)
     else:
         await promote(message, 0)
+    await message.bot.set_chat_administrator_custom_title(chat_id, user_id, custom_title)
+
+
+async def silence(message: Message):
+    args = message.get_args()
+    if not args.isdigit():
+        await message.reply('Укажи время в секундах')
+        return
+    if int(args) > 600:
+        await message.reply('леее, не больше 10 минут')
+        return
+
+    title = await get_member_title(message)
+    if not await restrict_user(message):
+        return
+
+    user_id = message.reply_to_message.from_user.id
+    silence_info = await silence_info_check(user_id, title)
+    if silence_info.is_silenced:
+        await message.reply('Пользователь уже в муте')
+        return
+    async with Db() as db:
+        await db.update_silences(user_id, True, title)
+    await message.reply('Этот клоун теперь в муте')
+    create_task(unsilence_delay(message, int(args)))
+
+
+async def unsilence(message: Message):
+    user_id = message.reply_to_message.from_user.id
+    async with Db() as db:
+        silence_info = await silence_info_check(user_id)
+        if not silence_info.is_silenced:
+            if message.text == '/unsilence':
+                await message.reply('Пользователь еще не в муте')
+                return
+            else:
+                return
+        await db.update_silences(user_id, False, silence_info.title)
+    await unrestrict_and_promote_user(message, silence_info.title)
     await message.answer(f'Пользователь @{message.reply_to_message.from_user.username} больше не в муте')
 
 
@@ -256,11 +311,12 @@ async def devil_trigger(message: Message):
 
 async def promote(message: Message, set_args: int = None):
     args = message.get_args()
+    user_id = message.reply_to_message.from_user.id
+    chat_id = message.chat.id
+
     if message.reply_to_message is None:
         await message.reply('Перешли сообщение дуд')
         return
-    user_id = message.reply_to_message.from_user.id
-    chat_id = message.chat.id
     if args is None or set_args == 0:
         await message.bot.promote_chat_member(
             chat_id,
@@ -462,5 +518,6 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(silence, commands=['silence'], chat_id=ls_group_id, user_id=users['konako'])
     dp.register_message_handler(unsilence, commands=['unsilence'], chat_id=ls_group_id, user_id=users['konako'])
     dp.register_message_handler(promote, commands=['promote'], chat_id=ls_group_id, user_id=users['konako'])
+    dp.register_message_handler(set_custom_title, commands=['set_title'], chat_id=ls_group_id)
     dp.register_chat_member_handler(novichok, somebody_joined, chat_id=ls_group_id)
     dp.register_chat_member_handler(uzhe_smesharik, somebody_left, chat_id=ls_group_id)
