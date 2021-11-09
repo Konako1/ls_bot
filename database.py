@@ -41,6 +41,12 @@ class Frame:
     count: int
 
 
+@dataclass()
+class SilenceInfo:
+    is_silenced: Optional[bool]
+    title: Optional[str]
+
+
 class Db:
     def __init__(self, path=Path.cwd()/'ls.db'):
         self._conn = aiosqlite.connect(path)
@@ -112,11 +118,11 @@ class Db:
         await self._conn.commit()
         return True
 
-    async def add_user_in_silences(self, user_id: int, is_silence_int: int):
+    async def add_user_in_silences(self, user_id: int, is_silence_int: int, title: str):
         if user_id is None:
             return False
-        await self._conn.execute('INSERT INTO silences(user_id, is_silenced) VALUES (?, ?)',
-                                 (user_id, is_silence_int))
+        await self._conn.execute('INSERT INTO silences(user_id, is_silenced, title) VALUES (?, ?, ?)',
+                                 (user_id, is_silence_int, title))
         await self._conn.commit()
         return True
 
@@ -172,16 +178,11 @@ class Db:
                                  (is_like, user_id, anek_id,))
         return True
 
-    async def update_silences(self, user_id: int, is_silence: bool) -> Optional[bool]:
+    async def update_silences(self, user_id: int, is_silence: bool, title: str) -> Optional[bool]:
         is_silence_int = 1 if is_silence is True else 0
-        is_user_silenced = await self.get_user_silence_info(user_id)
-        if is_user_silenced is None:
-            await self.add_user_in_silences(user_id, is_silence_int)
-        if is_silence == is_user_silenced:
-            return True
-        await self._conn.execute('UPDATE silences SET is_silenced=? WHERE user_id=?',
-                                 (is_silence_int, user_id, ))
-        return False
+        await self._conn.execute('UPDATE silences SET is_silenced=?, title=? WHERE user_id=?',
+                                 (is_silence_int, title, user_id, ))
+        return True
 
     async def get_frame_stat(self, frame: int) -> Optional[Frame]:
         cur = await self._conn.execute('SELECT count, datetime FROM frames WHERE frame=?',
@@ -284,13 +285,22 @@ class Db:
 
     async def get_all_devil_triggers(self) -> list[tuple[str]]:
         cur = await self._conn.execute('SELECT file_id FROM devil_triggers')
-        row = await cur.fetchall()
-        return row
+        rows = await cur.fetchall()
+        return rows
 
-    async def get_user_silence_info(self, user_id: int) -> Optional[bool]:
-        cur = await self._conn.execute('SELECT is_silenced FROM silences WHERE user_id=?',
+    async def get_user_silence_info(self, user_id: int) -> SilenceInfo:
+        cur = await self._conn.execute('SELECT is_silenced, title FROM silences WHERE user_id=?',
                                        (user_id, ))
         row = await cur.fetchone()
         if row is None:
-            return None
-        return True if int(row[0]) is 1 else False
+            return SilenceInfo(None, None)
+        if str(row[0]) == '1':
+            return SilenceInfo(
+                is_silenced=True,
+                title=str(row[1])
+            )
+        else:
+            return SilenceInfo(
+                is_silenced=False,
+                title=str(row[1])
+            )
