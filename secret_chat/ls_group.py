@@ -5,15 +5,16 @@ from typing import Optional
 
 from aiogram import Dispatcher, Bot
 from aiogram.dispatcher.filters import Text
+from aiogram.dispatcher.handler import SkipHandler
 from aiogram.types import Message, ContentTypes, InputFile, InlineKeyboardMarkup, \
     InlineKeyboardButton, CallbackQuery, ChatMemberUpdated, ChatMemberAdministrator
-from aiogram.utils.exceptions import CantRestrictChatOwner, UserIsAnAdministratorOfTheChat, CantRestrictSelf
+from aiogram.utils.exceptions import CantRestrictChatOwner, UserIsAnAdministratorOfTheChat, CantRestrictSelf, BadRequest
 
 from secret_chat import mc_server
 from secret_chat.config import users, ls_group_id, test_group_id, frames_dir
 from datetime import datetime
 from utils import StickerFilter, nice_pfp_filter, message_sender
-from asyncio import create_task
+from asyncio import create_task, sleep
 from database import Db, StatType, SilenceInfo
 
 import re
@@ -186,9 +187,9 @@ async def unsilence_delay(message: Message, sec: int):
     await unsilence(message)
 
 
-async def restrict_user(message: Message) -> bool:
+async def restrict_user(message: Message, user_id: int) -> bool:
     try:
-        await message.chat.restrict(message.reply_to_message.from_user.id, can_send_messages=False)
+        await message.chat.restrict(user_id, can_send_messages=False)
     except AttributeError as e:
         await message.reply('Реплайни сообщение, дебил')
         return False
@@ -204,8 +205,8 @@ async def restrict_user(message: Message) -> bool:
     return True
 
 
-async def get_member_title(message: Message) -> str:
-    member = await message.chat.get_member(message.reply_to_message.from_user.id)
+async def get_member_title(message: Message, user_id: int) -> str:
+    member = await message.chat.get_member(user_id)
     if isinstance(member, ChatMemberAdministrator):
         title = member.custom_title
     else:
@@ -240,10 +241,11 @@ async def set_custom_title(message: Message):
     is_success = await message.bot.set_chat_administrator_custom_title(chat_id, user_id, custom_title)
     if is_success:
         await message.reply(f'Теперь {gender} {custom_title}')
+    if user_id == users['acoola']:
+        raise SkipHandler
 
 
-async def unrestrict_and_promote_user(message: Message, custom_title: str):
-    user_id = message.reply_to_message.from_user.id
+async def unrestrict_and_promote_user(message: Message, user_id: int):
     chat_id = message.chat.id
     await message.chat.restrict(
         user_id,
@@ -253,10 +255,9 @@ async def unrestrict_and_promote_user(message: Message, custom_title: str):
         can_add_web_page_previews=True,
     )
     if user_id == users['konako'] or user_id == users['evg'] or user_id == users['yura']:
-        await promote(message, 1)
+        await promote(message, user_id, 1)
     else:
-        await promote(message, 0)
-    await message.bot.set_chat_administrator_custom_title(chat_id, user_id, custom_title)
+        await promote(message, user_id, 0)
 
 
 async def silence(message: Message):
@@ -268,11 +269,13 @@ async def silence(message: Message):
         await message.reply('леее, не больше 10 минут')
         return
 
-    title = await get_member_title(message)
-    if not await restrict_user(message):
+    try:
+        user_id = message.reply_to_message.from_user.id
+    except AttributeError:
+        user_id = message.from_user.id
+    title = await get_member_title(message, user_id)
+    if not await restrict_user(message, user_id):
         return
-
-    user_id = message.reply_to_message.from_user.id
     silence_info = await silence_info_check(user_id, title)
     if silence_info.is_silenced:
         await message.reply('Пользователь уже в муте')
@@ -284,7 +287,13 @@ async def silence(message: Message):
 
 
 async def unsilence(message: Message):
-    user_id = message.reply_to_message.from_user.id
+    try:
+        user_id = message.reply_to_message.from_user.id
+        username = message.reply_to_message.from_user.username
+    except AttributeError:
+        user_id = message.from_user.id
+        username = message.from_user.username
+    chat_id = message.chat.id
     async with Db() as db:
         silence_info = await silence_info_check(user_id)
         if not silence_info.is_silenced:
@@ -294,8 +303,14 @@ async def unsilence(message: Message):
             else:
                 return
         await db.update_silences(user_id, False, silence_info.title)
-    await unrestrict_and_promote_user(message, silence_info.title)
-    await message.answer(f'Пользователь @{message.reply_to_message.from_user.username} больше не в муте')
+    await unrestrict_and_promote_user(message, user_id)
+    try:
+        await message.bot.set_chat_administrator_custom_title(chat_id, user_id, silence_info.title)
+    except BadRequest:  # tg sucks ass and sometimes doesn't promote users correctly
+        await restrict_user(message, user_id)
+        await unrestrict_and_promote_user(message, user_id)
+        await message.bot.set_chat_administrator_custom_title(chat_id, user_id, silence_info.title)
+    await message.answer(f'Пользователь @{username} больше не в муте')
 
 
 async def devil_trigger(message: Message):
@@ -309,15 +324,21 @@ async def devil_trigger(message: Message):
     await message.answer_audio(audio_file_id)
 
 
-async def promote(message: Message, set_args: int = None):
+async def promote(message: Message, user_id: int = None, set_args: int = None):
     args = message.get_args()
-    user_id = message.reply_to_message.from_user.id
+    answer = 'no promotes for you'
+    print(args)
     chat_id = message.chat.id
+    if user_id is None:
+        user_id = message.reply_to_message.from_user.id
 
-    if message.reply_to_message is None:
-        await message.reply('Перешли сообщение дуд')
-        return
-    if args is None or set_args == 0:
+    try:
+        if set_args is None and message.reply_to_message is None:
+            await message.reply('Перешли сообщение дуд')
+            return
+    except AttributeError:
+        pass
+    if (args == '' or set_args == 0) and set_args != 1:
         await message.bot.promote_chat_member(
             chat_id,
             user_id,
@@ -327,7 +348,8 @@ async def promote(message: Message, set_args: int = None):
             can_manage_chat=True,
             can_manage_voice_chats=True,
         )
-    if args == '1' or set_args == 1:
+        answer = 'promoted to admin'
+    if args == 'giga' or set_args == 1:
         await message.bot.promote_chat_member(
             chat_id,
             user_id,
@@ -340,6 +362,11 @@ async def promote(message: Message, set_args: int = None):
             can_delete_messages=True,
             can_restrict_members=True
         )
+        answer = 'promoted to giga admin'
+    try:
+        await message.reply_to_message.reply(answer)
+    except AttributeError:
+        await message.reply(answer)
     if set_args is None:
         await message.delete()
 
@@ -428,6 +455,7 @@ async def commands(message: Message):
            f'/rollback - удаляет ласт фрейм из найс ав.\n' \
            f'/silence - запрещает пользователю писать в чат.\n' \
            f'/unsilence - разрешает пользователю писать в чат.\n' \
+           f'/set_title - ставит пользователю роль.\n' \
            f'Фичи:\n' \
            f'Словосочетания "голубь сдох" или "минус голубь" добавят одного голубя на кладбище.\n' \
            f'С некоторым шансом бот может кинуть медведя во время спама медведей.\n' \
@@ -502,6 +530,7 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(gamers, commands=['gamers'], chat_id=ls_group_id)
     dp.register_message_handler(senat, commands=['senat'], chat_id=ls_group_id)
     dp.register_message_handler(timecode, regexp=re.compile(r'https://youtu\.be/', re.I), chat_id=ls_group_id)
+    dp.register_message_handler(set_custom_title, commands=['set_title'], chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, nice_pfp_filter, chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD0xAAAh3DcUk', is_nice=True), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD-BQAAs57cEk', is_nice=False), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
@@ -515,9 +544,8 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(nice_pfp_rollback, commands=['rollback'], chat_id=ls_group_id, user_id=users['konako'])
     dp.register_message_handler(be_bra, regexp=re.compile(r'\bбе\b', re.I), chat_id=ls_group_id)
     dp.register_message_handler(server_status, commands='status', chat_id=ls_group_id)
-    dp.register_message_handler(silence, commands=['silence'], chat_id=ls_group_id, user_id=users['konako'])
-    dp.register_message_handler(unsilence, commands=['unsilence'], chat_id=ls_group_id, user_id=users['konako'])
+    dp.register_message_handler(silence, commands=['silence'], chat_id=ls_group_id)
+    dp.register_message_handler(unsilence, commands=['unsilence'], chat_id=ls_group_id)
     dp.register_message_handler(promote, commands=['promote'], chat_id=ls_group_id, user_id=users['konako'])
-    dp.register_message_handler(set_custom_title, commands=['set_title'], chat_id=ls_group_id)
     dp.register_chat_member_handler(novichok, somebody_joined, chat_id=ls_group_id)
     dp.register_chat_member_handler(uzhe_smesharik, somebody_left, chat_id=ls_group_id)
