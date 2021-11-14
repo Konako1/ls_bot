@@ -32,7 +32,7 @@ async def on_shutdown():
 
 
 def register():
-    autist.setup(dp)
+    # autist.setup(dp)
     tg_ls.setup(dp)
     test_group.setup(dp)
     ls_group.setup(dp)
