@@ -74,6 +74,11 @@ class Db:
         await self._conn.execute('CREATE TABLE IF NOT EXISTS silences(user_id INTEGER PRIMARY KEY NOT NULL,'
                                  'is_silenced INTEGER NOT NULL,'
                                  'CHECK (is_silenced IN (1, 0)))')
+        await self._conn.execute('CREATE TABLE IF NOT EXISTS aneks_saves(message_id INTEGER NOT NULL,'
+                                 'chat_id INTEGER NOT NULL,'
+                                 'is_saved INTEGER NOT NULL,'
+                                 'CHECK (is_saved in (1, 0)),'
+                                 'PRIMARY KEY(message_id, chat_id))')
         await self._conn.commit()
 
     async def close(self):
@@ -125,6 +130,11 @@ class Db:
                                  (user_id, is_silence_int, title))
         await self._conn.commit()
         return True
+
+    async def add_message_to_saves(self, message_id: int, chat_id: int):
+        await self._conn.execute('INSERT INTO aneks_saves(message_id, chat_id, is_saved) VALUES(?, ?, ?)',
+                                 (message_id, chat_id, 0))
+        await self._conn.commit()
 
     async def update_num(self, num: float):
         sign = 'positive' if num > 0 else 'negative'
@@ -183,6 +193,11 @@ class Db:
         await self._conn.execute('UPDATE silences SET is_silenced=?, title=? WHERE user_id=?',
                                  (is_silence_int, title, user_id, ))
         return True
+
+    async def update_message_to_save(self, message_id: int, chat_id: int):
+        await self._conn.execute('UPDATE aneks_saves SET is_saved=? WHERE message_id=? AND chat_id=?',
+                                 (1, message_id, chat_id))
+        await self._conn.commit()
 
     async def get_frame_stat(self, frame: int) -> Optional[Frame]:
         cur = await self._conn.execute('SELECT count, datetime FROM frames WHERE frame=?',
@@ -304,3 +319,12 @@ class Db:
                 is_silenced=False,
                 title=str(row[1])
             )
+
+    async def get_is_message_to_save(self, message_id: int, chat_id: int) -> Optional[bool]:
+        cur = await self._conn.execute('SELECT is_saved FROM aneks_saves WHERE message_id=? AND chat_id=?',
+                                       (message_id, chat_id))
+        row = await cur.fetchone()
+        if row is not None:
+            is_saved = True if int(row[0]) == 1 else False
+            return is_saved
+        return None
