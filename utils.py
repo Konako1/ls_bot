@@ -6,6 +6,8 @@ from aiogram.types import Message
 from aiogram.utils.exceptions import MessageToDeleteNotFound, MessageCantBeDeleted
 from asyncio import sleep
 
+from database import Db
+
 
 class StickerFilter:
     def __init__(self, sticker_id: str, **kwargs):
@@ -38,8 +40,19 @@ async def message_sender(text_to_print: str, chat_id: int, bot: Bot, reply_marku
     await bot.send_message(text=text_to_print, chat_id=chat_id, disable_web_page_preview=True, reply_markup=reply_markup)
 
 
-async def delayed_delete(message: Message, sec: int):
+async def is_anek_to_save(message: Message) -> bool:
+    async with Db() as db:
+        is_to_save = await db.get_is_message_to_save(message.message_id, message.chat.id)
+        if is_to_save is None:
+            print('message is not in DB wtf')
+            raise Exception
+        return is_to_save
+
+
+async def delayed_delete(message: Message, sec: int, is_anek: bool = False):
     await sleep(sec)
+    if is_anek and await is_anek_to_save(message):
+        return
     try:
         await message.delete()
     except MessageToDeleteNotFound as e:
