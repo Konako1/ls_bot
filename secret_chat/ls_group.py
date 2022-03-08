@@ -279,8 +279,8 @@ async def silence(message: Message):
     if not args.isdigit():
         await message.reply('Укажи время в секундах')
         return
-    if int(args) > 600:
-        await message.reply('леее, не больше 10 минут')
+    if int(args) > 1488:
+        await message.reply('леее, не больше 卐 минут')
         return
 
     try:
