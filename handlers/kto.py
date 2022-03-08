@@ -136,15 +136,28 @@ async def process_kto(message: Message) -> None:
     except BadRequest:
         pass
 
+    # Get reply message ID
+    reply = getattr(message.reply_to_message, 'message_id', None)
+
     # Try to find and send Easter eggs before parsing poll format
     args = message.get_args()
     if args.lower() in ("я", "ты"):
         return await send_poll(
-            message.chat.id, "Я", None, message.from_user.first_name, ("Пидорас", "Педофил")
+            message.chat.id,
+            "Я",
+            None,
+            message.from_user.first_name,
+            ("Пидорас", "Педофил"),
+            reply_to_id=reply,
         )
     if args.lower() in ("ттд", "ttd", "openttd"):
         return await send_poll(
-            message.chat.id, args, None, message.from_user.first_name, ("Ахахахахахахах", "ХАХХАХАХАХХАХАХ")
+            message.chat.id,
+            args,
+            None,
+            message.from_user.first_name,
+            ("Ахахахахахахах", "Не я"),
+            reply_to_id=reply,
         )
     if args.lower() == "куда а я по съёбам":
         await message.chat.unban(message.from_user.id)
@@ -162,7 +175,9 @@ async def process_kto(message: Message) -> None:
 
     # If only time was not specified, then it's a question without time
     if t is None:
-        return await send_poll(message.chat.id, place, t, message.from_user.first_name)
+        return await send_poll(
+            message.chat.id, place, t, message.from_user.first_name, reply_to_id=reply
+        )
 
     # Convert `timedelta` and `int` to `time`
     now = datetime.now()
@@ -187,7 +202,7 @@ async def process_kto(message: Message) -> None:
     assert isinstance(t, str)
 
     # Finally, send poll
-    await send_poll(message.chat.id, place, t, message.from_user.first_name)
+    await send_poll(message.chat.id, place, t, message.from_user.first_name, reply_to_id=reply)
 
 
 async def send_poll(
