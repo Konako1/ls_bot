@@ -1,12 +1,16 @@
 from asyncio import run, create_task
 from aiogram import Dispatcher, Bot
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.types import BotCommand, AllowedUpdates
+from aiogram.utils.exceptions import MessageNotModified
 
 import traveling_days
 import handlers
 from ls import tg_ls
 from secret_chat import ls_group, config, test_group, autist
 
+
+storage = MemoryStorage()
 bot = Bot(config.TG_TOKEN, parse_mode='HTML')
 dp = Dispatcher(bot)
 
@@ -22,7 +26,13 @@ async def on_startup():
         # BotCommand('gamers', 'Пинг GAYмеров.'),
         BotCommand('features', 'Фичи бота.'),
         BotCommand('anek', 'Рандомный анек с АКБ.'),
-        BotCommand('format', 'Формат голосования.')
+        BotCommand('format', 'Формат голосования.'),
+        BotCommand('create_ping_command', 'Создать команду для пинга участников в чате.'),
+        BotCommand('delete_ping_command', 'Удалить уже созданную команду.'),
+        BotCommand('add_me', 'Добавить себя в команду для пинга.'),
+        BotCommand('delete_me', 'Удалить себя из команды для пинга.'),
+        BotCommand('ping_commands', 'Показать все доступные в чате команды.'),
+        BotCommand('my_commands', 'Показать все доступные мне команды.'),
     ]
     )
 

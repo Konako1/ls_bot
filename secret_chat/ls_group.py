@@ -1,13 +1,17 @@
 import asyncio
+import logging
 from collections import Callable
 from re import Match
 from typing import Optional
 
 from aiogram import Dispatcher, Bot
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
+from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.dispatcher.handler import SkipHandler
 from aiogram.types import Message, ContentTypes, InputFile, InlineKeyboardMarkup, \
-    InlineKeyboardButton, CallbackQuery, ChatMemberUpdated, ChatMemberAdministrator
+    InlineKeyboardButton, CallbackQuery, ChatMemberUpdated, ChatMemberAdministrator, ChatPermissions, ForceReply
 from aiogram.utils.exceptions import CantRestrictChatOwner, UserIsAnAdministratorOfTheChat, CantRestrictSelf, BadRequest
 
 from secret_chat import mc_server
@@ -19,6 +23,13 @@ from database import Db, StatType, SilenceInfo
 
 import re
 import random
+
+
+class PingForm(StatesGroup):
+    create_ping_command = State()
+    delete_ping_command = State()
+    add_user_to_ping_command = State()
+    delete_user_from_ping_command = State()
 
 
 saved_messages = []
@@ -94,7 +105,7 @@ async def test(message: Message):
     text = message_saver(arg)
 
     if text is None:
-        return
+        raise SkipHandler
     await message.reply(text=text)
 
 
@@ -189,7 +200,7 @@ async def unsilence_delay(message: Message, sec: int):
 
 async def restrict_user(message: Message, user_id: int) -> bool:
     try:
-        await message.chat.restrict(user_id, can_send_messages=False)
+        await message.chat.restrict(user_id, permissions=ChatPermissions(can_send_messages=False))
     except AttributeError as e:
         await message.reply('Реплайни сообщение, дебил')
         return False
@@ -217,6 +228,7 @@ async def get_member_title(message: Message, user_id: int) -> str:
 async def silence_info_check(user_id: int, title: str = None) -> SilenceInfo:
     async with Db() as db:
         silence_info = await db.get_user_silence_info(user_id)
+        print(f'{repr(silence_info.title)} | {silence_info.is_silenced} | {repr(title)}')
         if title is None:
             title = silence_info.title
         if silence_info.is_silenced is None:
@@ -249,10 +261,12 @@ async def unrestrict_and_promote_user(message: Message, user_id: int):
     chat_id = message.chat.id
     await message.chat.restrict(
         user_id,
-        can_send_messages=True,
-        can_send_media_messages=True,
-        can_send_other_messages=True,
-        can_add_web_page_previews=True,
+        permissions=ChatPermissions(
+            can_send_messages=True,
+            can_send_media_messages=True,
+            can_send_other_messages=True,
+            can_add_web_page_previews=True,
+        )
     )
     if user_id == users['konako'] or user_id == users['evg'] or user_id == users['yura']:
         await promote(message, user_id, 1)
@@ -297,19 +311,24 @@ async def unsilence(message: Message):
     async with Db() as db:
         silence_info = await silence_info_check(user_id)
         if not silence_info.is_silenced:
-            if message.text == '/unsilence':
+            if message.text == '/unmute':
                 await message.reply('Пользователь еще не в муте')
                 return
             else:
                 return
         await db.update_silences(user_id, False, silence_info.title)
+
     await unrestrict_and_promote_user(message, user_id)
-    try:
-        await message.bot.set_chat_administrator_custom_title(chat_id, user_id, silence_info.title)
-    except BadRequest:  # tg sucks ass and sometimes doesn't promote users correctly
-        await restrict_user(message, user_id)
-        await unrestrict_and_promote_user(message, user_id)
-        await message.bot.set_chat_administrator_custom_title(chat_id, user_id, silence_info.title)
+    while True:
+        try:
+            await message.bot.set_chat_administrator_custom_title(chat_id, user_id, silence_info.title)
+        except:  # tg sucks ass and sometimes doesn't promote users correctly
+            await restrict_user(message, user_id)
+            await unrestrict_and_promote_user(message, user_id)
+            await asyncio.sleep(5)
+            logging.exception('Failed. Trying again.')
+        else:
+            break
     await message.answer(f'Пользователь @{username} больше не в муте')
 
 
@@ -327,7 +346,6 @@ async def devil_trigger(message: Message):
 async def promote(message: Message, user_id: int = None, set_args: int = None):
     args = message.get_args()
     answer = 'no promotes for you'
-    print(args)
     chat_id = message.chat.id
     if user_id is None:
         user_id = message.reply_to_message.from_user.id
@@ -363,98 +381,200 @@ async def promote(message: Message, user_id: int = None, set_args: int = None):
             can_restrict_members=True
         )
         answer = 'promoted to giga admin'
-    try:
-        await message.reply_to_message.reply(answer)
-    except AttributeError:
-        await message.reply(answer)
+        
+    if set_args is None:
+        try:
+            await message.reply_to_message.reply(answer)
+        except AttributeError:
+            await message.reply(answer)
     if set_args is None:
         await message.delete()
 
 
-async def all(message: Message):
-    chat_id = message.chat.id
-    if chat_id < 0 and chat_id != -1001465546583:
-        user_id = message.from_user.id
-        await message.chat.unban(user_id)
+async def is_ping_command_valid(command: str, message: Message) -> bool:
+    result = re.findall(r'\W', command)
+    if result:
+        await message.reply('Был введен некорректный символ, напиши команду еще раз. '
+                            'Допустимы только буквы, цифры и "_".\n/cancel для отмены.')
+    return not result
 
-    if chat_id > 0:
-        await message.reply('И кого мне тут пинговать? Тебя?')
+
+async def create_ping_command_handler(message: Message, state: FSMContext):
+    member = await message.chat.get_member(message.from_user.id)
+    if not isinstance(member, ChatMemberAdministrator):
+        await message.reply('Эта команда только для админов.')
         return
-
-    text = (id_converter(users["konako"], 'Величайший') +
-            id_converter(users['evg'], 'Гегжег') +
-            id_converter(users['gnome'], 'гном') +
-            id_converter(users['yura'], 'Гоблин тинкер') +
-            id_converter(users['lyoha'], 'Леха') +
-            id_converter(users['acoola'], 'Акулятор') +
-            id_converter(users['ship'], 'Корабль') +
-            id_converter(users['gelya'], 'Сшсшсшгеля') +
-            id_converter(users['bigdown'], 'BigDown') +
-            id_converter(users['yana'], 'Яна') +
-            id_converter(users['anastasia'], 'Анастэйша') +
-            id_converter(users['smoosya'], 'гача-ремикс') +
-            id_converter(users['sonya'], 'Вешалка') +
-            id_converter(users['karina'], 'Новичьок'))
-    await message.reply(
-        text=text,
-    )
+    command_list = await get_command_list(chat_id=message.chat.id)
+    await message.reply(f'Напиши название команды, которая будет использоваться для пинга.\n{command_list}'
+                        '/cancel для отмены.', reply_markup=ForceReply.create("Команда", selective=True))
+    await state.set_state(PingForm.create_ping_command.state)
 
 
-async def tmn(message: Message):
-    text = (id_converter(users["konako"], 'Величайший') +
-            id_converter(users['evg'], 'Гегжег') +
-            id_converter(users['gnome'], 'гном') +
-            id_converter(users['lyoha'], 'Леха') +
-            id_converter(users['acoola'], 'Акулятор') +
-            id_converter(users['gelya'], 'Сшсшсшгеля') +
-            id_converter(users['bigdown'], 'BigDown') +
-            id_converter(users['yana'], 'Яна') +
-            id_converter(users['anastasia'], 'Анастэйша') +
-            id_converter(users['smoosya'], 'гача-ремикс') +
-            id_converter(users['karina'], 'Новичьок'))
-    await message.reply(
-        text=text,
-    )
+async def create_ping_command(message: Message, state: FSMContext):
+    command = message.text.lower()
+    if not await is_ping_command_valid(command, message):
+        return
+    await state.reset_state()
+    async with Db() as db:
+        await db.add_ping_command(message.chat.id, command)
+    await message.reply(f'Команда /{command} была создана.')
 
 
-async def gamers(message: Message):
-    text = (id_converter(users['konako'], 'Cocknako') +
-            id_converter(users['gnome'], 'гном') +
-            id_converter(users['lyoha'], 'Льоха') +
-            id_converter(users['evg'], 'Гегжук') +
-            id_converter(users['yura'], 'Лошок') +
-            id_converter(users['bigdown'], 'Богдан') +
-            id_converter(users['ship'], 'Лодка') +
-            id_converter(users['sonya'], 'Вешалка'))
-    await message.reply(
-        text=text,
-    )
+async def delete_ping_command_handler(message: Message, state: FSMContext):
+    member = await message.chat.get_member(message.from_user.id)
+    if not isinstance(member, ChatMemberAdministrator):
+        await message.reply('Эта команда только для админов.')
+        return
+    command_list = await get_command_list(message.chat.id)
+    await message.reply(f'Напиши название команды, которую нужно удалить.\n{command_list}'
+                        '/cancel для отмены.', reply_markup=ForceReply.create("Команда", selective=True))
+    await state.set_state(PingForm.delete_ping_command.state)
 
 
-async def senat(message: Message):
-    text = (
-        id_converter(users['konako'], 'Цезарь') +
-        id_converter(users['gnome'], 'Август') +
-        id_converter(users['sonya'], 'Екатерина II') +
-        id_converter(users['gelya'], 'Елизовета Петровна')
-    )
-    await message.reply(text)
+async def delete_ping_command(message: Message, state: FSMContext):
+    command = message.text.lower()
+    if not await is_ping_command_valid(command, message):
+        return
+    await state.reset_state()
+    async with Db() as db:
+        command_id = await db.get_ping_command_id(message.chat.id, command)
+        if command_id == -1:
+            await message.reply('Такой команды не существует.')
+            return
+        await db.remove_command(command_id)
+    await message.reply(f'Команда /{command} была удалена.')
+
+
+async def add_user_to_command_handler(message: Message, state: FSMContext):
+    command_list = await get_command_list(message.chat.id)
+    if command_list is None:
+        msg = f'В этом чате пока нет ни одной команды. /create_ping_command для создания новой.'
+        markup = None
+    else:
+        msg = f'Напиши название команды, куда ты хочешь себя добавить.\n{command_list}/cancel для отмены.'
+        markup = ForceReply.create("Команда", selective=True)
+    await message.reply(msg, reply_markup=markup)
+    await state.set_state(PingForm.add_user_to_ping_command.state)
+
+
+async def add_user_to_command(message: Message, state: FSMContext):
+    command = message.text.lower()
+    if not await is_ping_command_valid(command, message):
+        return
+    async with Db() as db:
+        command_id = await db.get_ping_command_id(message.chat.id, command)
+        if command_id == -1:
+            await message.reply('Такой команды не существует.')
+            return
+        await db.add_ping_user(message.from_user.id, message.from_user.username)
+        result = await db.bind_command_user(message.from_user.id, command_id)
+    await state.reset_state()
+    if result is False:
+        await message.reply('Пользователь уже был добавлен.')
+        return
+    await message.reply('Пользователь был добавлен.')
+
+
+async def delete_user_from_command_handler(message: Message, state: FSMContext):
+    command_list = await get_command_list(message.chat.id)
+    if command_list is None:
+        msg = f'В этом чате пока нет ни одной команды. /create_ping_command для создания новой.'
+        markup = None
+    else:
+        msg = f'Напиши название команды, из который ты хочешь себя убрать.\n{command_list}/cancel для отмены.'
+        markup = ForceReply.create("Команда", selective=True)
+    await message.reply(msg, reply_markup=markup)
+    await state.set_state(PingForm.delete_user_from_ping_command.state)
+
+
+async def delete_user_from_command(message: Message, state: FSMContext):
+    command = message.text.lower()
+    if not await is_ping_command_valid(command, message):
+        return
+    async with Db() as db:
+        command_id = await db.get_ping_command_id(message.chat.id, command)
+        if command_id == -1:
+            await message.reply('Такой команды не существует.')
+            return
+        is_deleted = await db.remove_user_from_command(command_id, message.from_user.id)
+    await state.reset_state()
+    if is_deleted:
+        await message.reply('Успешно.')
+        return
+    await message.reply('Тебя в этой команде и не было.')
+
+
+async def cancel_state(message: Message, state: FSMContext):
+    await state.reset_state()
+    await message.reply('Операция была отменена.')
+
+
+async def ping_users(message: Message):
+    command = message.text.lstrip('/')
+    async with Db() as db:
+        command_id = await db.get_ping_command_id(message.chat.id, command)
+        if command_id == -1:
+            return
+        usernames = await db.get_all_ping_usernames(command_id)
+    if not usernames:
+        await message.reply('В команде нет ни одного пользователя.')
+        return
+    msg = ''
+    for username in usernames:
+        msg += f'@{username[0]} '
+    await message.reply(msg)
+
+
+async def get_command_list(chat_id: int) -> str:
+    async with Db() as db:
+        ping_commands = await db.get_all_ping_commands(chat_id)
+    if not ping_commands:
+        return ''
+    msg = 'Список доступных команд для этого чата:\n'
+    for command in ping_commands:
+        msg += f'{command[0]}\n'
+    return msg
+
+
+async def get_user_command_list(chat_id: int, user_id: int) -> str:
+    async with Db() as db:
+        user_ping_commands = await db.get_all_ping_commands_for_user(chat_id, user_id)
+    if not user_ping_commands:
+        return ''
+    msg = 'Список твоих команд:\n'
+    for command in user_ping_commands:
+        msg += f'{command}\n'
+    return msg
+
+
+async def get_available_commands(message: Message):
+    msg = await get_command_list(message.chat.id)
+    if msg == '':
+        await message.reply('В этом чате нет ни одной команды.')
+        return
+    msg += 'Все команды прописываются через "/"'
+    await message.reply(msg)
+
+
+async def get_user_commands(message: Message):
+    msg = await get_user_command_list(message.chat.id, message.from_user.id)
+    if msg == '':
+        await message.reply('Тебя нет ни в одной команде.')
+        return
+    msg += 'Все команды прописываются через "/"'
+    await message.reply(msg)
 
 
 async def commands(message: Message):
     text = f'Список комманд:\n' \
            f'/кто - Команда которая преобразует введенное место и время в опрос. /format for more.\n' \
-           f'/all - Пинг всех участников конфы.\n' \
-           f'/tmn - Пинг всех участников из Тюмени.\n' \
-           f'/gamers - Пинг GAYмеров.\n' \
            f'/status - Статус майнкрафт сервера.\n' \
-           f'/senat - Пингует челов, которые участвуют в споре.\n' \
            f'/pasta - Рандомная паста.\n' \
            f'/say - Бесполезная матеша.\n' \
            f'/graveyard - Количество голубей на кладбище.\n' \
            f'/rollback - удаляет ласт фрейм из найс ав.\n' \
-           f'/silence - запрещает пользователю писать в чат.\n' \
-           f'/unsilence - разрешает пользователю писать в чат.\n' \
+           f'/mute - запрещает пользователю писать в чат.\n' \
+           f'/unmute - разрешает пользователю писать в чат.\n' \
            f'/set_title - ставит пользователю роль.\n' \
            f'Фичи:\n' \
            f'Словосочетания "голубь сдох" или "минус голубь" добавят одного голубя на кладбище.\n' \
@@ -525,10 +645,10 @@ async def uzhe_smesharik(event: ChatMemberUpdated):
 
 def setup(dp: Dispatcher):
     dp.register_message_handler(delete_message, user_id=[users['konako'], users['gnome']], commands=['del'], chat_id=ls_group_id)
-    dp.register_message_handler(all, commands=['all'])
-    dp.register_message_handler(tmn, commands=['tmn'], chat_id=ls_group_id)
-    dp.register_message_handler(gamers, commands=['gamers'], chat_id=ls_group_id)
-    dp.register_message_handler(senat, commands=['senat'], chat_id=ls_group_id)
+    # dp.register_message_handler(all, commands=['all'])
+    # dp.register_message_handler(tmn, commands=['tmn'], chat_id=ls_group_id)
+    # dp.register_message_handler(gamers, commands=['gamers'], chat_id=ls_group_id)
+    # dp.register_message_handler(senat, commands=['senat'], chat_id=ls_group_id)
     dp.register_message_handler(timecode, regexp=re.compile(r'https://youtu\.be/', re.I), chat_id=ls_group_id)
     dp.register_message_handler(set_custom_title, commands=['set_title'], chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, nice_pfp_filter, chat_id=ls_group_id)
@@ -544,8 +664,20 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(nice_pfp_rollback, commands=['rollback'], chat_id=ls_group_id, user_id=users['konako'])
     dp.register_message_handler(be_bra, regexp=re.compile(r'\bбе\b', re.I), chat_id=ls_group_id)
     dp.register_message_handler(server_status, commands='status', chat_id=ls_group_id)
-    dp.register_message_handler(silence, commands=['silence'], chat_id=ls_group_id)
-    dp.register_message_handler(unsilence, commands=['unsilence'], chat_id=ls_group_id)
+    dp.register_message_handler(silence, commands=['mute'], chat_id=ls_group_id)
+    dp.register_message_handler(unsilence, commands=['unmute'], chat_id=ls_group_id)
+    dp.register_message_handler(create_ping_command_handler, commands=['create_ping_command'])
+    dp.register_message_handler(create_ping_command, state=PingForm.create_ping_command, content_types=['text'])
+    dp.register_message_handler(delete_ping_command_handler, commands=['delete_ping_command'])
+    dp.register_message_handler(delete_ping_command, state=PingForm.delete_ping_command, content_types=['text'])
+    dp.register_message_handler(add_user_to_command_handler, commands=['add_me'])
+    dp.register_message_handler(add_user_to_command, state=PingForm.add_user_to_ping_command, content_types=['text'])
+    dp.register_message_handler(delete_user_from_command_handler, commands=['delete_me'])
+    dp.register_message_handler(delete_user_from_command, state=PingForm.delete_user_from_ping_command, content_types=['text'])
+    dp.register_message_handler(get_available_commands, commands=['ping_commands'])
+    dp.register_message_handler(get_user_commands, commands=['my_commands'])
+    dp.register_message_handler(cancel_state, state=[PingForm.add_user_to_ping_command, PingForm.create_ping_command], commands=['cancel'])
     dp.register_message_handler(promote, commands=['promote'], chat_id=ls_group_id, user_id=users['konako'])
     dp.register_chat_member_handler(novichok, somebody_joined, chat_id=ls_group_id)
     dp.register_chat_member_handler(uzhe_smesharik, somebody_left, chat_id=ls_group_id)
+    dp.register_message_handler(ping_users, Text(startswith='/'))

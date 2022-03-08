@@ -1,3 +1,5 @@
+from sqlite3 import IntegrityError
+
 import aiosqlite
 from typing import Optional
 from dataclasses import dataclass
@@ -79,6 +81,15 @@ class Db:
                                  'is_saved INTEGER NOT NULL,'
                                  'CHECK (is_saved in (1, 0)),'
                                  'PRIMARY KEY(message_id, chat_id))')
+        await self._conn.execute('CREATE TABLE IF NOT EXISTS ping_commands('
+                                 'id INTEGER PRIMARY KEY NOT NULL, chat_id INTEGER NOT NULL,'
+                                 'command TEXT NOT NULL)')
+        await self._conn.execute('CREATE TABLE IF NOT EXISTS ping_users(user_id INTEGER PRIMARY KEY NOT NULL,'
+                                 'username TEXT NOT NULL)')
+        await self._conn.execute('CREATE TABLE IF NOT EXISTS command_user('
+                                 'command_id INTEGER NOT NULL REFERENCES ping_commands(id),'
+                                 'user_id INTEGER NOT NULL REFERENCES ping_users(user_id),'
+                                 'UNIQUE(command_id, user_id))')
         await self._conn.commit()
 
     async def close(self):
@@ -136,6 +147,25 @@ class Db:
                                  (message_id, chat_id, 0))
         await self._conn.commit()
 
+    async def add_ping_command(self, chat_id: int, command: str):
+        await self._conn.execute('INSERT INTO ping_commands(chat_id, command) VALUES(?, ?)',
+                                 (chat_id, command))
+        await self._conn.commit()
+
+    async def add_ping_user(self, user_id: int, username: str):
+        await self._conn.execute('INSERT INTO ping_users(user_id, username) VALUES(?, ?)'
+                                 'ON CONFLICT(user_id) DO UPDATE SET username=?',
+                                 (user_id, username, username))
+        await self._conn.commit()
+
+    async def bind_command_user(self, user_id: int, command_id: int) -> bool:
+        try:
+            await self._conn.execute('INSERT INTO command_user(command_id, user_id) VALUES(?, ?)',
+                                     (command_id, user_id))
+        except IntegrityError:
+            return False
+        await self._conn.commit()
+
     async def update_num(self, num: float):
         sign = 'positive' if num > 0 else 'negative'
         saved_num = await self.get_num(sign)
@@ -157,7 +187,6 @@ class Db:
 
         if previous_sticker is None:
             args = (sticker.name, sticker.date.timestamp(), sticker.probability, sticker.count)
-            print(args)
             await self._conn.execute('INSERT INTO stickers(sticker, datetime, probability, count) VALUES (?, ?, ?, ?)',
                                      args)
         else:
@@ -283,6 +312,40 @@ class Db:
         rows = await cur.fetchall()
         return rows
 
+    async def get_ping_command_id(self, chat_id: int, command: str) -> int:
+        cur = await self._conn.execute('SELECT id FROM ping_commands WHERE chat_id=? AND command=?',
+                                       (chat_id, command))
+        row = await cur.fetchone()
+        if row is not None:
+            return int(row[0])
+        return -1
+
+    async def get_all_ping_usernames(self, command_id: int) -> list[tuple[str]]:
+        cur = await self._conn.execute('SELECT u.username FROM command_user AS cu INNER JOIN ping_users AS u ON u.user_id = cu.user_id WHERE cu.command_id = ?',
+                                       (command_id, ))
+        rows = await cur.fetchall()
+        return rows
+
+    async def get_all_ping_commands(self, chat_id: int) -> list[tuple[str]]:
+        cur = await self._conn.execute('SELECT command FROM ping_commands WHERE chat_id=?',
+                                       (chat_id, ))
+        rows = await cur.fetchall()
+        return rows
+
+    async def get_all_ping_commands_for_user(self, chat_id: int, user_id: int) -> list[int]:
+        cur = await self._conn.execute('SELECT id, command FROM ping_commands WHERE chat_id=?',
+                                       (chat_id, ))
+        all_chat_commands_id = await cur.fetchall()
+        cur_ = await self._conn.execute('SELECT command_id FROM command_user WHERE user_id=?',
+                                        (user_id, ))
+        user_commands_id = await cur_.fetchall()
+        user_commands_id_list = map(lambda x: x[0], user_commands_id)
+        result: list[int] = []
+        for command_id, command in all_chat_commands_id:
+            if command_id in user_commands_id_list:
+                result.append(command)
+        return result
+
     async def remove_frame(self, frame: int) -> Optional[bool]:
         cur = await self._conn.execute('SELECT count FROM frames WHERE frame=?',
                                        (frame, ))
@@ -297,6 +360,20 @@ class Db:
             await self._conn.execute('UPDATE frames SET count=?, datetime=? WHERE frame=?',
                                      (row[0] - 1, 0.0, frame, ))
             return True
+
+    async def remove_user_from_command(self, command_id: int, user_id: int) -> bool:
+        cur = await self._conn.execute('DELETE FROM command_user WHERE command_id=? AND user_id=?',
+                                       (command_id, user_id))
+        row = cur.fetchone()
+        if row is None:
+            return False
+        return True
+
+    async def remove_command(self, command_id):
+        await self._conn.execute('DELETE FROM ping_commands WHERE id=?',
+                                 (command_id, ))
+        await self._conn.execute('DELETE FROM command_user WHERE command_id=?',
+                                 (command_id, ))
 
     async def get_all_devil_triggers(self) -> list[tuple[str]]:
         cur = await self._conn.execute('SELECT file_id FROM devil_triggers')
