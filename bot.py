@@ -12,7 +12,12 @@ from secret_chat import ls_group, config, test_group, autist
 
 storage = MemoryStorage()
 bot = Bot(config.TG_TOKEN, parse_mode='HTML')
-dp = Dispatcher(bot)
+dp = Dispatcher(bot, storage=storage)
+
+
+@dp.errors_handler(exception=MessageNotModified)
+async def ignore_exception(update, exception):
+    return True
 
 
 async def on_startup():
