@@ -641,6 +641,11 @@ async def uzhe_smesharik(event: ChatMemberUpdated):
             "Кто-то вышел из чата, но цифр в названии чата я не нашёл, поэтому хуй там я поменяю"
             " вам название, ебитесь сами"
         )
+        
+async def niggers(message: Message):
+    nig = ["негры", "niggers"]
+    if any(item in message.text.lower() for item in nig):
+        await message.reply('пидарасы')        
 
 
 def setup(dp: Dispatcher):
