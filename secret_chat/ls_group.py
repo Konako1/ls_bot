@@ -279,8 +279,8 @@ async def silence(message: Message):
     if not args.isdigit():
         await message.reply('Укажи время в секундах')
         return
-    if int(args) > 1488:
-        await message.reply('леее, не больше 卐 минут')
+    if int(args) > 600:
+        await message.reply('леее, не больше 10 минут')
         return
 
     try:
@@ -641,6 +641,12 @@ async def uzhe_smesharik(event: ChatMemberUpdated):
             "Кто-то вышел из чата, но цифр в названии чата я не нашёл, поэтому хуй там я поменяю"
             " вам название, ебитесь сами"
         )
+
+
+async def niggers(message: Message):
+    nig = ["негры", "niggers"]
+    if any(item in message.text.lower() for item in nig):
+        await message.reply('пидарасы')
 
 
 def setup(dp: Dispatcher):
