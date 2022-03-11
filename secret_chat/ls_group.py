@@ -33,6 +33,7 @@ class PingForm(StatesGroup):
 
 
 saved_messages = []
+test2 = []
 
 
 def id_converter(tg_id: list, name: str) -> str:
