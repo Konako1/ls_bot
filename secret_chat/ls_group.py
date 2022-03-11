@@ -641,17 +641,13 @@ async def uzhe_smesharik(event: ChatMemberUpdated):
             "Кто-то вышел из чата, но цифр в названии чата я не нашёл, поэтому хуй там я поменяю"
             " вам название, ебитесь сами"
         )
-        
-async def niggers(message: Message):
-    nig = ["негры", "niggers"]
-    if any(item in message.text.lower() for item in nig):
-        await message.reply('пидарасы')        
 
 
 async def niggers(message: Message):
-    nig = ["негры", "niggers"]
-    if any(item in message.text.lower() for item in nig):
-        await message.reply('пидарасы')
+    if message.from_user.id == users['eger']:
+        await message.reply('сам ты пидор, а не негры')
+        return
+    await message.reply('пидарасы')
 
 
 def setup(dp: Dispatcher):
@@ -674,6 +670,7 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(get_pic_from_num, commands=['pic'], chat_id=[test_group_id, ls_group_id])
     dp.register_message_handler(nice_pfp_rollback, commands=['rollback'], chat_id=ls_group_id, user_id=users['konako'])
     dp.register_message_handler(be_bra, regexp=re.compile(r'\bбе\b', re.I), chat_id=ls_group_id)
+    dp.register_message_handler(niggers, regexp=re.compile(r'\bнегры\b', re.I), chat_id=ls_group_id)
     dp.register_message_handler(server_status, commands='status', chat_id=ls_group_id)
     dp.register_message_handler(silence, commands=['mute'], chat_id=ls_group_id)
     dp.register_message_handler(unsilence, commands=['unmute'], chat_id=ls_group_id)
