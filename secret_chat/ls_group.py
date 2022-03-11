@@ -645,16 +645,14 @@ async def uzhe_smesharik(event: ChatMemberUpdated):
 async def niggers(message: Message):
     nig = ["негры", "niggers"]
     if any(item in message.text.lower() for item in nig):
+        await message.reply('пидарасы')        
+
+
+async def niggers(message: Message):
+    nig = ["негры", "niggers"]
+    if any(item in message.text.lower() for item in nig):
         await message.reply('пидарасы')
 
-
-async def repstat(message: Message):
-    p_rep = ["+", "согласен", "согласна", "поддерживаю"]
-    if any(item in message.text.lower() for item in p_rep):
-        await message.reply('+ rep')
-    m_rep = ["-", "не согласен", "не согласна", "не поддерживаю"]
-    if any(item in message.text.lower() for item in m_rep):
-        await message.reply('- rep')
 
 def setup(dp: Dispatcher):
     dp.register_message_handler(delete_message, user_id=[users['konako'], users['gnome']], commands=['del'], chat_id=ls_group_id)
