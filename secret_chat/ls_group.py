@@ -648,12 +648,6 @@ async def niggers(message: Message):
         await message.reply('пидарасы')        
 
 
-async def niggers(message: Message):
-    nig = ["негры", "niggers"]
-    if any(item in message.text.lower() for item in nig):
-        await message.reply('пидарасы')
-
-
 def setup(dp: Dispatcher):
     dp.register_message_handler(delete_message, user_id=[users['konako'], users['gnome']], commands=['del'], chat_id=ls_group_id)
     # dp.register_message_handler(all, commands=['all'])
