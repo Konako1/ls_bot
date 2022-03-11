@@ -311,7 +311,7 @@ async def unsilence(message: Message):
     async with Db() as db:
         silence_info = await silence_info_check(user_id)
         if not silence_info.is_silenced:
-            if message.text == '/анмут':
+            if message.text == '/unmute':
                 await message.reply('Пользователь еще не в муте')
                 return
             else:
@@ -573,8 +573,8 @@ async def commands(message: Message):
            f'/say - Бесполезная матеша.\n' \
            f'/graveyard - Количество голубей на кладбище.\n' \
            f'/rollback - удаляет ласт фрейм из найс ав.\n' \
-           f'/мут - запрещает пользователю писать в чат.\n' \
-           f'/анмут - разрешает пользователю писать в чат.\n' \
+           f'/mute - запрещает пользователю писать в чат.\n' \
+           f'/unmute - разрешает пользователю писать в чат.\n' \
            f'/set_title - ставит пользователю роль.\n' \
            f'Фичи:\n' \
            f'Словосочетания "голубь сдох" или "минус голубь" добавят одного голубя на кладбище.\n' \
@@ -648,15 +648,6 @@ async def niggers(message: Message):
         await message.reply('пидарасы')        
 
 
-async def repstat(message: Message):
-    p_rep = ["+", "согасен", "согласна", "поддерживаю"]
-    m_rep = ["-", "не согасен", "не согласна", "не поддерживаю"]
-    if any(item in message.text.lower() for item in p_rep):
-        await message.reply('+rep')
-    elif any(item in message.text.lower() for item in m_rep):
-        await message.reply('-rep')
-
-
 def setup(dp: Dispatcher):
     dp.register_message_handler(delete_message, user_id=[users['konako'], users['gnome']], commands=['del'], chat_id=ls_group_id)
     # dp.register_message_handler(all, commands=['all'])
@@ -679,8 +670,8 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(be_bra, regexp=re.compile(r'\bбе\b', re.I), chat_id=ls_group_id)
     dp.register_message_handler(niggers, regexp=re.compile(r'\bнегры\b', re.I), chat_id=ls_group_id)
     dp.register_message_handler(server_status, commands='status', chat_id=ls_group_id)
-    dp.register_message_handler(silence, commands=['мут'], chat_id=ls_group_id)
-    dp.register_message_handler(unsilence, commands=['анмут'], chat_id=ls_group_id)
+    dp.register_message_handler(silence, commands=['mute'], chat_id=ls_group_id)
+    dp.register_message_handler(unsilence, commands=['unmute'], chat_id=ls_group_id)
     dp.register_message_handler(create_ping_command_handler, commands=['create_ping_command'])
     dp.register_message_handler(create_ping_command, state=PingForm.create_ping_command, content_types=['text'])
     dp.register_message_handler(delete_ping_command_handler, commands=['delete_ping_command'])
