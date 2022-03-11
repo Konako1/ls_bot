@@ -648,10 +648,13 @@ async def niggers(message: Message):
         await message.reply('пидарасы')        
 
 
-async def niggers(message: Message):
-    nig = ["негры", "niggers"]
-    if any(item in message.text.lower() for item in nig):
-        await message.reply('пидарасы')
+async def repstat(message: Message):
+    p_rep = ["+", "согасен", "согласна", "поддерживаю"]
+    m_rep = ["-", "не согасен", "не согласна", "не поддерживаю"]
+    if any(item in message.text.lower() for item in p_rep):
+        await message.reply('+rep')
+    elif any(item in message.text.lower() for item in m_rep):
+        await message.reply('-rep')
 
 
 def setup(dp: Dispatcher):
@@ -674,6 +677,7 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(get_pic_from_num, commands=['pic'], chat_id=[test_group_id, ls_group_id])
     dp.register_message_handler(nice_pfp_rollback, commands=['rollback'], chat_id=ls_group_id, user_id=users['konako'])
     dp.register_message_handler(be_bra, regexp=re.compile(r'\bбе\b', re.I), chat_id=ls_group_id)
+    dp.register_message_handler(niggers, regexp=re.compile(r'\bнегры\b', re.I), chat_id=ls_group_id)
     dp.register_message_handler(server_status, commands='status', chat_id=ls_group_id)
     dp.register_message_handler(silence, commands=['mute'], chat_id=ls_group_id)
     dp.register_message_handler(unsilence, commands=['unmute'], chat_id=ls_group_id)
