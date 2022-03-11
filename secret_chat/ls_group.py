@@ -645,12 +645,6 @@ async def uzhe_smesharik(event: ChatMemberUpdated):
 async def niggers(message: Message):
     nig = ["негры", "niggers"]
     if any(item in message.text.lower() for item in nig):
-        await message.reply('пидарасы')        
-
-
-async def niggers(message: Message):
-    nig = ["негры", "niggers"]
-    if any(item in message.text.lower() for item in nig):
         await message.reply('пидарасы')
 
 
