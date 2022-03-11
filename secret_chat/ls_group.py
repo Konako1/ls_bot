@@ -311,7 +311,7 @@ async def unsilence(message: Message):
     async with Db() as db:
         silence_info = await silence_info_check(user_id)
         if not silence_info.is_silenced:
-            if message.text == '/unmute':
+            if message.text == '/анмут':
                 await message.reply('Пользователь еще не в муте')
                 return
             else:
@@ -573,8 +573,8 @@ async def commands(message: Message):
            f'/say - Бесполезная матеша.\n' \
            f'/graveyard - Количество голубей на кладбище.\n' \
            f'/rollback - удаляет ласт фрейм из найс ав.\n' \
-           f'/mute - запрещает пользователю писать в чат.\n' \
-           f'/unmute - разрешает пользователю писать в чат.\n' \
+           f'/мут - запрещает пользователю писать в чат.\n' \
+           f'/анмут - разрешает пользователю писать в чат.\n' \
            f'/set_title - ставит пользователю роль.\n' \
            f'Фичи:\n' \
            f'Словосочетания "голубь сдох" или "минус голубь" добавят одного голубя на кладбище.\n' \
@@ -670,8 +670,8 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(be_bra, regexp=re.compile(r'\bбе\b', re.I), chat_id=ls_group_id)
     dp.register_message_handler(niggers, regexp=re.compile(r'\bнегры\b', re.I), chat_id=ls_group_id)
     dp.register_message_handler(server_status, commands='status', chat_id=ls_group_id)
-    dp.register_message_handler(silence, commands=['mute'], chat_id=ls_group_id)
-    dp.register_message_handler(unsilence, commands=['unmute'], chat_id=ls_group_id)
+    dp.register_message_handler(silence, commands=['мут'], chat_id=ls_group_id)
+    dp.register_message_handler(unsilence, commands=['анмут'], chat_id=ls_group_id)
     dp.register_message_handler(create_ping_command_handler, commands=['create_ping_command'])
     dp.register_message_handler(create_ping_command, state=PingForm.create_ping_command, content_types=['text'])
     dp.register_message_handler(delete_ping_command_handler, commands=['delete_ping_command'])
