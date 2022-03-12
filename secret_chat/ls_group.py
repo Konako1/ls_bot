@@ -296,6 +296,8 @@ async def silence(message: Message):
         return
     async with Db() as db:
         await db.update_silences(user_id, True, title)
+    if message.from_user.id == users['eger']:
+        return
     await message.reply('Этот клоун теперь в муте')
     create_task(unsilence_delay(message, int(args)))
 
