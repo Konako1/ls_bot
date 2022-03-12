@@ -511,6 +511,8 @@ async def cancel_state(message: Message, state: FSMContext):
 
 async def ping_users(message: Message):
     command = message.text.lstrip('/')
+    if command.startswith('кто') or command.startswith('kto'):
+        raise SkipHandler
     async with Db() as db:
         command_id = await db.get_ping_command_id(message.chat.id, command)
         if command_id == -1:
