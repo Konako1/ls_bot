@@ -565,6 +565,13 @@ async def get_user_commands(message: Message):
     await message.reply(msg)
 
 
+async def niggers(message: Message):
+    msg = 'пидорасы'
+    if message.from_user.id == users['eger']:
+        msg = 'сам ты пидор, а не негры'
+    await message.reply(msg)
+
+
 async def commands(message: Message):
     text = f'Список комманд:\n' \
            f'/кто - Команда которая преобразует введенное место и время в опрос. /format for more.\n' \
@@ -663,6 +670,7 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(get_pic_from_num, commands=['pic'], chat_id=[test_group_id, ls_group_id])
     dp.register_message_handler(nice_pfp_rollback, commands=['rollback'], chat_id=ls_group_id, user_id=users['konako'])
     dp.register_message_handler(be_bra, regexp=re.compile(r'\bбе\b', re.I), chat_id=ls_group_id)
+    dp.register_message_handler(niggers, regexp=re.compile(r'\bнегры\b', re.I), chat_id=ls_group_id)
     dp.register_message_handler(server_status, commands='status', chat_id=ls_group_id)
     dp.register_message_handler(silence, commands=['mute'], chat_id=ls_group_id)
     dp.register_message_handler(unsilence, commands=['unmute'], chat_id=ls_group_id)
