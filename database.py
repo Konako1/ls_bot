@@ -110,8 +110,8 @@ class Db:
             await self._conn.execute('INSERT INTO frames(frame, count, datetime) VALUES (?, ?, ?)',
                                      (frame, 1, recent_datetime))
         else:
-            await self._conn.execute('UPDATE frames SET frame=?, datetime=? WHERE count=? ',
-                                     (frame, recent_datetime, frame_data.count + 1))
+            await self._conn.execute('UPDATE frames SET count=?, datetime=? WHERE frame=? ',
+                                     (frame_data.count + 1, recent_datetime, frame))
         await self._conn.commit()
 
     async def add_sticker(self, sticker: StickerInfo):
