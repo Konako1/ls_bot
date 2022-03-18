@@ -1,5 +1,5 @@
 import re
-from datetime import timedelta, time, datetime
+from datetime import timedelta, time, datetime, date
 from typing import Union, Optional, Iterable
 
 from aiogram import Bot, Dispatcher
@@ -69,7 +69,29 @@ def _written_to_numeric_ru(t: Optional[str]) -> int:
     return r
 
 
-def get_poll_info(text: str) -> tuple[str, Union[str, timedelta, time, int, None]]:
+def _month_name_to_int_ru(t: str) -> Optional[int]:
+    return {
+        "января": 1,
+        "февраля": 2,
+        "марта": 3,
+        "апреля": 4,
+        "мая": 5,
+        "июня": 6,
+        "июля": 7,
+        "августа": 8,
+        "сентября": 9,
+        "октября": 10,
+        "ноября": 11,
+        "декабря": 12,
+    }.get(t.lower())
+
+
+def _clean_normalize_place(text: str, full_match: str) -> str:
+    """Cleans and normalizes place string"""
+    return " ".join(map(str.strip, (x for x in text.replace(full_match, "").split() if x)))
+
+
+def get_poll_info(text: str) -> tuple[str, Union[str, timedelta, time, date, int, None]]:
     """Parse poll and return place and time."""
     # Normalize text
     text = text.strip(' \n\t?!.,;')
@@ -88,8 +110,7 @@ def get_poll_info(text: str) -> tuple[str, Union[str, timedelta, time, int, None
     match = re.search(r"через (?:(.+) )?(час(?:а|ов)?|минут[уы]?)", text, re.I)
     if match is not None:
         arg_name = {"ч": "hours", "м": "minutes"}[match[2][0]]
-        # clean and normalize place string
-        place = " ".join(map(str.strip, (x for x in text.replace(match[0], "").split() if x)))
+        place = _clean_normalize_place(text, match[0])
         if not match[1] or not match[1].isdecimal():
             real_time = _written_to_numeric_ru(match[1])
         else:
@@ -99,16 +120,33 @@ def get_poll_info(text: str) -> tuple[str, Union[str, timedelta, time, int, None
     # Try to find smth like "в 23:59" or just "23:59"
     match = re.search(r"(?:в )?([0-9]|[01][0-9]|2[0-3]):([0-5][0-9])", text, re.I)
     if match is not None:
-        # clean and normalize place string
-        place = " ".join(map(str.strip, (x for x in text.replace(match[0], "").split() if x)))
+        place = _clean_normalize_place(text, match[0])
         return place, time(*map(int, (match[1], match[2])))
 
     # Try to find smth like "в 19" or "в 19 часов"
     match = re.search(r"в ([0-9](?!\d)|[01][0-9]|2[0-3])(?: час(?:а|ов)?)?", text, re.I)
     if match is not None:
-        # clean and normalize place string
-        place = " ".join(map(str.strip, (x for x in text.replace(match[0], "").split() if x)))
+        place = _clean_normalize_place(text, match[0])
         return place, time(int(match[1]))
+
+    # Try to find short date
+    match = re.search(r"([012]?[0-9]|3[01]).(0\d|1[012])(?:.(\d\d|\d{4}))?", text, re.I)
+    if match is not None:
+        place = _clean_normalize_place(text, match[0])
+        if not match[3]:
+            y = datetime.now().year
+        else:
+            y = int(match[3])
+        return place, date(y, int(match[2]), int(match[1]))
+
+    # Try to find long date
+    match = re.search(r"([012]?[0-9]|3[01]) ([а-яА-Я]+)", text, re.I)
+    if match is not None:
+        month = _month_name_to_int_ru(match[2])
+        if month is not None:
+            # Long date found, continuing
+            place = _clean_normalize_place(text, match[0])
+            return place, date(datetime.now().year, month, int(match[1]))
 
     # Try to find a number in the beginning or in the end
     for word in (words[0], words[-1]):
@@ -216,6 +254,9 @@ async def process_kto(message: Message) -> None:
         # Then if it was a `time`, or it became `time`, convert it to `str` in format "HH:MM"
         if isinstance(t, time):
             t = t.strftime("%H:%M")
+        # Otherwise, if it was a `date`, convert it to `str` in format "dd.mm.YYYY"
+        elif isinstance(t, date):
+            t = t.strftime("%d.%m.%Y")
 
         # It became a `str` after these conversions, or it already was a `str`, anyway we assert it
         # just in case
