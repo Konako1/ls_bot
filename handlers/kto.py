@@ -162,7 +162,13 @@ async def process_kto(message: Message) -> None:
         return
 
     # Parse poll format
-    place, t = get_poll_info(args)
+    place = args
+    ts = []
+    t0 = ""
+    while t0 is not None:
+        place, t0 = get_poll_info(place)
+        if t0 is not None:
+            ts.append(t0)
 
     # If "точно" is in text, remove "Мб я" option
     if place and place.startswith("точно"):
@@ -181,43 +187,47 @@ async def process_kto(message: Message) -> None:
         pass
 
     # If only time was not specified, then it's a question without time
-    if t is None:
+    if not ts:
         return await send_poll(
             message.chat.id,
             place,
-            t,
+            None,
             message.from_user.first_name,
             answers=options,
             reply_to_id=reply,
         )
 
-    # Convert `timedelta` and `int` to `time`
-    now = datetime.now()
-    if isinstance(t, timedelta):
-        t = (now + t).time()
-    elif isinstance(t, int):
-        now_hour = now.hour + 1
-        if now_hour <= t or now_hour - 12 >= t:
-            # now = 08:30, now_hour = 9, t = 10, expected = 10:00
-            # now = 22:50, now_hour = 23, t = 10, expected = 10:00
-            t = time(t)
-        elif now_hour >= t >= now_hour - 12:
-            # now = 12:30, now_hour = 13, t = 10, expected = 22:00
-            t = time((t + 12) % 24)
+    # Convert each time to its string representation
+    for i, t in enumerate(ts):
+        # Convert `timedelta` and `int` to `time`
+        now = datetime.now()
+        if isinstance(t, timedelta):
+            t = (now + t).time()
+        elif isinstance(t, int):
+            now_hour = now.hour + 1
+            if now_hour <= t or now_hour - 12 >= t:
+                # now = 08:30, now_hour = 9, t = 10, expected = 10:00
+                # now = 22:50, now_hour = 23, t = 10, expected = 10:00
+                t = time(t)
+            elif now_hour >= t >= now_hour - 12:
+                # now = 12:30, now_hour = 13, t = 10, expected = 22:00
+                t = time((t + 12) % 24)
 
-    # Then if it was a `time`, or it became `time`, convert it to `str` in format "HH:MM"
-    if isinstance(t, time):
-        t = t.strftime("%H:%M")
+        # Then if it was a `time`, or it became `time`, convert it to `str` in format "HH:MM"
+        if isinstance(t, time):
+            t = t.strftime("%H:%M")
 
-    # It became a `str` after these conversions, or it already was a `str`, anyway we assert it
-    # just in case
-    assert isinstance(t, str)
+        # It became a `str` after these conversions, or it already was a `str`, anyway we assert it
+        # just in case
+        assert isinstance(t, str)
+
+        ts[i] = t
 
     # Finally, send poll
     await send_poll(
         message.chat.id,
         place,
-        t,
+        " ".join(reversed(ts)),
         message.from_user.first_name,
         answers=options,
         reply_to_id=reply,
