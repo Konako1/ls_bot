@@ -5,6 +5,7 @@ from typing import Union, Optional, Iterable
 from aiogram import Bot, Dispatcher
 from aiogram.types import Message
 from aiogram.utils.exceptions import BadRequest
+from aiogram.utils.markdown import quote_html
 
 
 KEYWORDS: tuple[str, ...] = (
@@ -204,7 +205,15 @@ async def process_kto(message: Message) -> None:
     ts = []
     t0 = ""
     while t0 is not None:
-        place, t0 = get_poll_info(place)
+        try:
+            place, t0 = get_poll_info(place)
+        except ValueError as e:
+            await message.reply(
+                f"Научись правильно писать аргументы!\n"
+                f"Если не знаешь, как этим пользоваться, нажми /format\n"
+                f"А сейчас, лови ошибку: <code>{e.__class__.__name__}: {quote_html(str(e))}</code>"
+            )
+            return
         if t0 is not None:
             ts.append(t0)
 
