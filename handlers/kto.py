@@ -321,6 +321,26 @@ async def send_poll(
     )
 
 
+def _bot_poll_filter(message: Message) -> bool:
+    bot = Bot.get_current()
+    reply = message.reply_to_message
+    return reply is not None and reply.from_user.id == bot.id and reply.poll is not None
+
+
+async def stop_kto(message: Message):
+    bot = Bot.get_current()
+    reply = message.reply_to_message
+    if reply.poll.is_closed:
+        await message.reply("Не могу остановить уже остановленный опрос")
+        return
+    await bot.stop_poll(message.chat.id, reply.message_id)
+    await message.reply("Опрос остановлен")
+
+
+async def stop_kto_fallback(message: Message):
+    await message.reply("Ты забыл ответить на мой опрос!")
+
+
 async def help_kto(message: Message):
     text = (
         "<b>Как использовать команду /кто?</b>\n"
@@ -358,7 +378,9 @@ async def help_kto(message: Message):
         "• /кто жрать епта\n"
         "• /кто точно жрать ёпта\n"
         "\n"
-        "<i>В этой команде есть несколько пасхалок :-)</i>"
+        "Созданный опрос можно остановить командой /stop_poll\n"
+        "\n"
+        "<i>В этой команде есть несколько пасхалок :-)</i>\n"
     )
 
     await message.reply(text=text, parse_mode="HTML")
@@ -367,3 +389,5 @@ async def help_kto(message: Message):
 def register(dp: Dispatcher):
     dp.register_message_handler(process_kto, commands=["кто", "kto"])
     dp.register_message_handler(help_kto, commands=['format'])
+    dp.register_message_handler(stop_kto, _bot_poll_filter, commands=['stop_poll'])
+    dp.register_message_handler(stop_kto_fallback, commands=['stop_poll'])
