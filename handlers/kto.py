@@ -130,11 +130,9 @@ def get_poll_info(text: str) -> tuple[str, Union[str, timedelta, time, int, None
 
 async def process_kto(message: Message) -> None:
     """Process /kto and /кто."""
-    # First, delete original message as it's not really needed
-    try:
-        await message.delete()
-    except BadRequest:
-        pass
+
+    # Set default poll answers
+    options = ("Я", "Мб я", "Не я")
 
     # Get reply message ID
     reply = getattr(message.reply_to_message, 'message_id', None)
@@ -166,17 +164,31 @@ async def process_kto(message: Message) -> None:
     # Parse poll format
     place, t = get_poll_info(args)
 
-    # If place was not specified, then it's "Борщ"
+    # If "точно" is in text, remove "Мб я" option
+    if place and place.startswith("точно"):
+        place = place.removeprefix("точно").lstrip()
+        options = ("Я", "Не я")
+
+    # If place was not specified
     if not place:
-        place = "Борщ"
-        # If place and time were not specified, then time is in 15 minutes
-        if t is None:
-            t = timedelta(minutes=15)
+        await message.reply('Что "кто"?\nЕсли не знаешь, как этим пользоваться, нажми /format')
+        return
+
+    # Delete original message as it's not really needed
+    try:
+        await message.delete()
+    except BadRequest:
+        pass
 
     # If only time was not specified, then it's a question without time
     if t is None:
         return await send_poll(
-            message.chat.id, place, t, message.from_user.first_name, reply_to_id=reply
+            message.chat.id,
+            place,
+            t,
+            message.from_user.first_name,
+            answers=options,
+            reply_to_id=reply,
         )
 
     # Convert `timedelta` and `int` to `time`
@@ -202,7 +214,14 @@ async def process_kto(message: Message) -> None:
     assert isinstance(t, str)
 
     # Finally, send poll
-    await send_poll(message.chat.id, place, t, message.from_user.first_name, reply_to_id=reply)
+    await send_poll(
+        message.chat.id,
+        place,
+        t,
+        message.from_user.first_name,
+        answers=options,
+        reply_to_id=reply,
+    )
 
 
 async def send_poll(
@@ -210,7 +229,7 @@ async def send_poll(
         place: str,
         t: Optional[str],
         sent_by: Optional[str],
-        answers: Iterable[str] = ("Я", "Мб я", "Не я"),
+        answers: Iterable[str],
         reply_to_id: Optional[int] = None,
 ) -> None:
     """Send poll to the chat.
@@ -247,8 +266,6 @@ async def help_kto(message: Message):
         "<b>Как использовать команду /кто?</b>\n"
         "• <i>/кто место время</i> (порядок не важен) — <i>Время. Место. Кто.</i>\n"
         "• <i>/кто текст</i> — <i>Текст. Кто.</i>\n"
-        "• <i>/кто время</i> — <i>Время. Борщ. Кто.</i>\n"
-        "• <i>/кто</i> — <i>Через 15 минут. Борщ. Кто.</i>\n"
         "\n"
         "<b>Форматы времени</b>\n"
         "• щас, сейчас, скоро, сегодня, завтра, утром, днём, вечером, ночью, никогда и т.д.;\n"
@@ -269,13 +286,9 @@ async def help_kto(message: Message):
         "• /кто смотреть кино\n"
         "• /кто настолки через два часа у Евгена\n"
         "• /кто настолки в 18:30 у Евгена\n"
-        "• /кто 12\n"
-        "• /кто 16:45\n"
-        "• /кто через 5 минут\n"
         "• /кто играть 7\n"
         "• /кто жрать ёпта\n"
         "• /кто жрать епта\n"
-        "• /кто\n"
         "\n"
         "<i>В этой команде есть несколько пасхалок :-)</i>"
     )
