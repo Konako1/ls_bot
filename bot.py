@@ -48,10 +48,10 @@ async def on_shutdown():
 
 def register():
     # autist.setup(dp)
+    handlers.register_all(dp)
     tg_ls.setup(dp)
     test_group.setup(dp)
     ls_group.setup(dp)
-    handlers.register_all(dp)
 
 
 async def main():
