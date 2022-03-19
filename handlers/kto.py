@@ -92,7 +92,7 @@ def _clean_normalize_place(text: str, full_match: str) -> str:
     return " ".join(map(str.strip, (x for x in text.replace(full_match, "").split() if x)))
 
 
-def get_poll_info(text: str) -> tuple[str, Union[str, timedelta, time, date, int, None]]:
+def get_poll_info(text: str) -> tuple[str, Union[str, timedelta, time, date, None]]:
     """Parse poll and return place and time."""
     # Normalize text
     text = text.strip(' \n\t?!.,;')
@@ -148,20 +148,6 @@ def get_poll_info(text: str) -> tuple[str, Union[str, timedelta, time, date, int
             # Long date found, continuing
             place = _clean_normalize_place(text, match[0])
             return place, date(datetime.now().year, month, int(match[1]))
-
-    # Try to find a number in the beginning or in the end
-    for word in (words[0], words[-1]):
-        if word.isdecimal():
-            time_word = word
-    if time_word is not None:
-        words.remove(time_word)
-        place = " ".join(words)
-        if time_word.isdecimal() and 1 <= int(time_word) <= 12:
-            return place, int(time_word)
-        try:
-            return place, time(int(time_word))
-        except ValueError:
-            pass
 
     # Finally, it's just a text without any time
     return text, None
@@ -246,20 +232,10 @@ async def process_kto(message: Message) -> None:
 
     # Convert each time to its string representation
     for i, t in enumerate(ts):
-        # Convert `timedelta` and `int` to `time`
+        # Convert `timedelta` to `time`
         now = datetime.now()
         if isinstance(t, timedelta):
             t = (now + t).time()
-        elif isinstance(t, int):
-            now_hour = now.hour + 1
-            if now_hour <= t or now_hour - 12 >= t:
-                # now = 08:30, now_hour = 9, t = 10, expected = 10:00
-                # now = 22:50, now_hour = 23, t = 10, expected = 10:00
-                t = time(t)
-            elif now_hour >= t >= now_hour - 12:
-                # now = 12:30, now_hour = 13, t = 10, expected = 22:00
-                t = time((t + 12) % 24)
-
         # Then if it was a `time`, or it became `time`, convert it to `str` in format "HH:MM"
         if isinstance(t, time):
             t = t.strftime("%H:%M")
@@ -358,10 +334,9 @@ async def help_kto(message: Message):
         "• в 23:30, 11:45, в 8 часов, в 8;\n"
         "• 31.12, 31.12.22, 31.12.2022;\n"
         "• 31 декабря;\n"
-        "• 5, 8, 22 (сработает только в начале или конце сообщения).\n"
         "\n"
         "<b>Примеры, которые точно сработают</b>\n"
-        "• /кто борщ 19\n"
+        "• /кто борщ в 19\n"
         "• /кто гулять сейчас\n"
         "• /кто пойдёт гулять сейчас\n"
         "• /кто сейчас пойдёт гулять\n"
@@ -373,7 +348,7 @@ async def help_kto(message: Message):
         "• /кто завтра в настолки в 18:30 у Евгена\n"
         "• /кто 10 июля в настолки в 17:00 у меня\n"
         "• /кто 10.07 в настолки в 17:00 у меня\n"
-        "• /кто играть 7\n"
+        "• /кто играть в 7\n"
         "• /кто жрать ёпта\n"
         "• /кто жрать епта\n"
         "• /кто точно жрать ёпта\n"
