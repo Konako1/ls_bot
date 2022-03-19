@@ -176,7 +176,7 @@ async def process_kto(message: Message) -> None:
 
     # Try to find and send Easter eggs before parsing poll format
     args = message.get_args()
-    if args.lower() in ("я", "ты"):
+    if args.lower() in ("я", "ты", ""):
         return await send_poll(
             message.chat.id,
             "Я",
