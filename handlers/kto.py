@@ -7,6 +7,8 @@ from aiogram.types import Message
 from aiogram.utils.exceptions import BadRequest
 from aiogram.utils.markdown import quote_html
 
+TimeT = Union[str, timedelta, time, date, None]
+
 
 KEYWORDS: tuple[str, ...] = (
     "епта",
@@ -92,7 +94,7 @@ def _clean_normalize_place(text: str, full_match: str) -> str:
     return " ".join(map(str.strip, (x for x in text.replace(full_match, "").split() if x)))
 
 
-def get_poll_info(text: str) -> tuple[str, Union[str, timedelta, time, date, None]]:
+def _get_poll_info(text: str) -> tuple[str, TimeT]:
     """Parse poll and return place and time."""
     # Normalize text
     text = text.strip(' \n\t?!.,;')
@@ -153,6 +155,16 @@ def get_poll_info(text: str) -> tuple[str, Union[str, timedelta, time, date, Non
     return text, None
 
 
+def get_poll_info(text: str) -> tuple[str, list[TimeT]]:
+    ts = []
+    t0: TimeT = ""
+    while t0 is not None:
+        text, t0 = _get_poll_info(text)
+        if t0 is not None:
+            ts.append(t0)
+    return text, ts
+
+
 async def process_kto(message: Message) -> None:
     """Process /kto and /кто."""
 
@@ -187,21 +199,15 @@ async def process_kto(message: Message) -> None:
         return
 
     # Parse poll format
-    place = args
-    ts = []
-    t0 = ""
-    while t0 is not None:
-        try:
-            place, t0 = get_poll_info(place)
-        except ValueError as e:
-            await message.reply(
-                f"Научись правильно писать аргументы!\n"
-                f"Если не знаешь, как этим пользоваться, нажми /format\n"
-                f"А сейчас, лови ошибку: <code>{e.__class__.__name__}: {quote_html(str(e))}</code>"
-            )
-            return
-        if t0 is not None:
-            ts.append(t0)
+    try:
+        place, ts = get_poll_info(args)
+    except ValueError as e:
+        await message.reply(
+            f"Научись правильно писать аргументы!\n"
+            f"Если не знаешь, как этим пользоваться, нажми /format\n"
+            f"А сейчас, лови ошибку: <code>{e.__class__.__name__}: {quote_html(str(e))}</code>"
+        )
+        return
 
     # If "точно" is in text, remove "Мб я" option
     if place and place.startswith("точно"):
