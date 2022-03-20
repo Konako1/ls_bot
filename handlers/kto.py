@@ -293,14 +293,20 @@ async def send_poll(
         question = f"{t}. {question}"
     if sent_by is not None:
         question += f"\n\nby {sent_by}"
-    await bot.send_poll(
-        chat_id,
-        question,
-        list(answers),
-        is_anonymous=False,
-        reply_to_message_id=reply_to_id,
-        allow_sending_without_reply=True,  # just in case
-    )
+    try:
+        await bot.send_poll(
+            chat_id,
+            question,
+            list(answers),
+            is_anonymous=False,
+            reply_to_message_id=reply_to_id,
+            allow_sending_without_reply=True,  # just in case
+        )
+    except BadRequest as e:
+        await bot.send_message(
+            chat_id,
+            f"Не могу отправить опрос: <code>{quote_html(str(e))}</code>",
+        )
 
 
 def _bot_poll_filter(message: Message) -> bool:
