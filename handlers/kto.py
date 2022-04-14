@@ -1,10 +1,13 @@
 import re
-from datetime import timedelta, time, datetime
+from datetime import timedelta, time, datetime, date
 from typing import Union, Optional, Iterable
 
 from aiogram import Bot, Dispatcher
 from aiogram.types import Message
 from aiogram.utils.exceptions import BadRequest
+from aiogram.utils.markdown import quote_html
+
+TimeT = Union[str, timedelta, time, date, None]
 
 
 KEYWORDS: tuple[str, ...] = (
@@ -69,7 +72,29 @@ def _written_to_numeric_ru(t: Optional[str]) -> int:
     return r
 
 
-def get_poll_info(text: str) -> tuple[str, Union[str, timedelta, time, int, None]]:
+def _month_name_to_int_ru(t: str) -> Optional[int]:
+    return {
+        "января": 1,
+        "февраля": 2,
+        "марта": 3,
+        "апреля": 4,
+        "мая": 5,
+        "июня": 6,
+        "июля": 7,
+        "августа": 8,
+        "сентября": 9,
+        "октября": 10,
+        "ноября": 11,
+        "декабря": 12,
+    }.get(t.lower())
+
+
+def _clean_normalize_place(text: str, full_match: str) -> str:
+    """Cleans and normalizes place string"""
+    return " ".join(map(str.strip, (x for x in text.replace(full_match, "").split() if x)))
+
+
+def _get_poll_info(text: str) -> tuple[str, TimeT]:
     """Parse poll and return place and time."""
     # Normalize text
     text = text.strip(' \n\t?!.,;')
@@ -88,8 +113,7 @@ def get_poll_info(text: str) -> tuple[str, Union[str, timedelta, time, int, None
     match = re.search(r"через (?:(.+) )?(час(?:а|ов)?|минут[уы]?)", text, re.I)
     if match is not None:
         arg_name = {"ч": "hours", "м": "minutes"}[match[2][0]]
-        # clean and normalize place string
-        place = " ".join(map(str.strip, (x for x in text.replace(match[0], "").split() if x)))
+        place = _clean_normalize_place(text, match[0])
         if not match[1] or not match[1].isdecimal():
             real_time = _written_to_numeric_ru(match[1])
         else:
@@ -99,49 +123,60 @@ def get_poll_info(text: str) -> tuple[str, Union[str, timedelta, time, int, None
     # Try to find smth like "в 23:59" or just "23:59"
     match = re.search(r"(?:в )?([0-9]|[01][0-9]|2[0-3]):([0-5][0-9])", text, re.I)
     if match is not None:
-        # clean and normalize place string
-        place = " ".join(map(str.strip, (x for x in text.replace(match[0], "").split() if x)))
+        place = _clean_normalize_place(text, match[0])
         return place, time(*map(int, (match[1], match[2])))
 
     # Try to find smth like "в 19" or "в 19 часов"
     match = re.search(r"в ([0-9](?!\d)|[01][0-9]|2[0-3])(?: час(?:а|ов)?)?", text, re.I)
     if match is not None:
-        # clean and normalize place string
-        place = " ".join(map(str.strip, (x for x in text.replace(match[0], "").split() if x)))
+        place = _clean_normalize_place(text, match[0])
         return place, time(int(match[1]))
 
-    # Try to find a number in the beginning or in the end
-    for word in (words[0], words[-1]):
-        if word.isdecimal():
-            time_word = word
-    if time_word is not None:
-        words.remove(time_word)
-        place = " ".join(words)
-        if time_word.isdecimal() and 1 <= int(time_word) <= 12:
-            return place, int(time_word)
-        try:
-            return place, time(int(time_word))
-        except ValueError:
-            pass
+    # Try to find short date
+    match = re.search(r"([012]?[0-9]|3[01]).(0\d|1[012])(?:.(\d\d|\d{4}))?", text, re.I)
+    if match is not None:
+        place = _clean_normalize_place(text, match[0])
+        if not match[3]:
+            y = datetime.now().year
+        else:
+            y = int(match[3])
+        return place, date(y, int(match[2]), int(match[1]))
+
+    # Try to find long date
+    match = re.search(r"([012]?[0-9]|3[01]) ([а-яА-Я]+)", text, re.I)
+    if match is not None:
+        month = _month_name_to_int_ru(match[2])
+        if month is not None:
+            # Long date found, continuing
+            place = _clean_normalize_place(text, match[0])
+            return place, date(datetime.now().year, month, int(match[1]))
 
     # Finally, it's just a text without any time
     return text, None
 
 
+def get_poll_info(text: str) -> tuple[str, list[TimeT]]:
+    ts = []
+    t0: TimeT = ""
+    while t0 is not None:
+        text, t0 = _get_poll_info(text)
+        if t0 is not None:
+            ts.append(t0)
+    return text, ts
+
+
 async def process_kto(message: Message) -> None:
     """Process /kto and /кто."""
-    # First, delete original message as it's not really needed
-    try:
-        await message.delete()
-    except BadRequest:
-        pass
+
+    # Set default poll answers
+    options = ("Я", "Мб я", "Не я")
 
     # Get reply message ID
     reply = getattr(message.reply_to_message, 'message_id', None)
 
     # Try to find and send Easter eggs before parsing poll format
     args = message.get_args()
-    if args.lower() in ("я", "ты"):
+    if args.lower() in ("я", "ты", ""):
         return await send_poll(
             message.chat.id,
             "Я",
@@ -164,45 +199,71 @@ async def process_kto(message: Message) -> None:
         return
 
     # Parse poll format
-    place, t = get_poll_info(args)
+    try:
+        place, ts = get_poll_info(args)
+    except ValueError as e:
+        await message.reply(
+            f"Научись правильно писать аргументы!\n"
+            f"Если не знаешь, как этим пользоваться, нажми /format\n"
+            f"А сейчас, лови ошибку: <code>{e.__class__.__name__}: {quote_html(str(e))}</code>"
+        )
+        return
 
-    # If place was not specified, then it's "Борщ"
+    # If "точно" is in text, remove "Мб я" option
+    if place and place.startswith("точно"):
+        place = place.removeprefix("точно").lstrip()
+        options = ("Я", "Не я")
+
+    # If place was not specified
     if not place:
-        place = "Борщ"
-        # If place and time were not specified, then time is in 15 minutes
-        if t is None:
-            t = timedelta(minutes=15)
+        await message.reply('Что "кто"?\nЕсли не знаешь, как этим пользоваться, нажми /format')
+        return
+
+    # Delete original message as it's not really needed
+    try:
+        await message.delete()
+    except BadRequest:
+        pass
 
     # If only time was not specified, then it's a question without time
-    if t is None:
+    if not ts:
         return await send_poll(
-            message.chat.id, place, t, message.from_user.first_name, reply_to_id=reply
+            message.chat.id,
+            place,
+            None,
+            message.from_user.first_name,
+            answers=options,
+            reply_to_id=reply,
         )
 
-    # Convert `timedelta` and `int` to `time`
-    now = datetime.now()
-    if isinstance(t, timedelta):
-        t = (now + t).time()
-    elif isinstance(t, int):
-        now_hour = now.hour + 1
-        if now_hour <= t or now_hour - 12 >= t:
-            # now = 08:30, now_hour = 9, t = 10, expected = 10:00
-            # now = 22:50, now_hour = 23, t = 10, expected = 10:00
-            t = time(t)
-        elif now_hour >= t >= now_hour - 12:
-            # now = 12:30, now_hour = 13, t = 10, expected = 22:00
-            t = time((t + 12) % 24)
+    # Convert each time to its string representation
+    for i, t in enumerate(ts):
+        # Convert `timedelta` to `time`
+        now = datetime.now()
+        if isinstance(t, timedelta):
+            t = (now + t).time()
+        # Then if it was a `time`, or it became `time`, convert it to `str` in format "HH:MM"
+        if isinstance(t, time):
+            t = t.strftime("%H:%M")
+        # Otherwise, if it was a `date`, convert it to `str` in format "dd.mm.YYYY"
+        elif isinstance(t, date):
+            t = t.strftime("%d.%m.%Y")
 
-    # Then if it was a `time`, or it became `time`, convert it to `str` in format "HH:MM"
-    if isinstance(t, time):
-        t = t.strftime("%H:%M")
+        # It became a `str` after these conversions, or it already was a `str`, anyway we assert it
+        # just in case
+        assert isinstance(t, str)
 
-    # It became a `str` after these conversions, or it already was a `str`, anyway we assert it
-    # just in case
-    assert isinstance(t, str)
+        ts[i] = t
 
     # Finally, send poll
-    await send_poll(message.chat.id, place, t, message.from_user.first_name, reply_to_id=reply)
+    await send_poll(
+        message.chat.id,
+        place,
+        " ".join(reversed(ts)),
+        message.from_user.first_name,
+        answers=options,
+        reply_to_id=reply,
+    )
 
 
 async def send_poll(
@@ -210,7 +271,7 @@ async def send_poll(
         place: str,
         t: Optional[str],
         sent_by: Optional[str],
-        answers: Iterable[str] = ("Я", "Мб я", "Не я"),
+        answers: Iterable[str],
         reply_to_id: Optional[int] = None,
 ) -> None:
     """Send poll to the chat.
@@ -232,23 +293,49 @@ async def send_poll(
         question = f"{t}. {question}"
     if sent_by is not None:
         question += f"\n\nby {sent_by}"
-    await bot.send_poll(
-        chat_id,
-        question,
-        list(answers),
-        is_anonymous=False,
-        reply_to_message_id=reply_to_id,
-        allow_sending_without_reply=True,  # just in case
-    )
+    try:
+        await bot.send_poll(
+            chat_id,
+            question,
+            list(answers),
+            is_anonymous=False,
+            reply_to_message_id=reply_to_id,
+            allow_sending_without_reply=True,  # just in case
+        )
+    except BadRequest as e:
+        await bot.send_message(
+            chat_id,
+            f"Не могу отправить опрос: <code>{quote_html(str(e))}</code>",
+        )
+
+
+def _bot_poll_filter(message: Message) -> bool:
+    bot = Bot.get_current()
+    reply = message.reply_to_message
+    return reply is not None and reply.from_user.id == bot.id and reply.poll is not None
+
+
+async def stop_kto(message: Message):
+    bot = Bot.get_current()
+    reply = message.reply_to_message
+    if reply.poll.is_closed:
+        await message.reply("Не могу остановить уже остановленный опрос")
+        return
+    await bot.stop_poll(message.chat.id, reply.message_id)
+    await message.reply("Опрос остановлен")
+
+
+async def stop_kto_fallback(message: Message):
+    await message.reply("Ты забыл ответить на мой опрос!")
 
 
 async def help_kto(message: Message):
     text = (
         "<b>Как использовать команду /кто?</b>\n"
-        "• <i>/кто место время</i> (порядок не важен) — <i>Время. Место. Кто.</i>\n"
-        "• <i>/кто текст</i> — <i>Текст. Кто.</i>\n"
-        "• <i>/кто время</i> — <i>Время. Борщ. Кто.</i>\n"
-        "• <i>/кто</i> — <i>Через 15 минут. Борщ. Кто.</i>\n"
+        "• <i>/кто место время</i> (порядок не важен) — <i>Время. Место. Кто. (Я, Мб я, Не я)</i>\n"
+        "• <i>/кто текст</i> — <i>Текст. Кто. (Я, Мб я, Не я)</i>\n"
+        "• <i>/кто точно место время</i> — <i>Время. Место. Кто. (Я, Не я)</i>\n"
+        "• <i>/кто точно текст</i> — <i>Текст. Кто. (Я, Не я)</i>\n"
         "\n"
         "<b>Форматы времени</b>\n"
         "• щас, сейчас, скоро, сегодня, завтра, утром, днём, вечером, ночью, никогда и т.д.;\n"
@@ -257,10 +344,11 @@ async def help_kto(message: Message):
         " сработает и не надо);\n"
         "• через минуту, через час;\n"
         "• в 23:30, 11:45, в 8 часов, в 8;\n"
-        "• 5, 8, 22 (сработает только в начале или конце сообщения).\n"
+        "• 31.12, 31.12.22, 31.12.2022;\n"
+        "• 31 декабря;\n"
         "\n"
         "<b>Примеры, которые точно сработают</b>\n"
-        "• /кто борщ 19\n"
+        "• /кто борщ в 19\n"
         "• /кто гулять сейчас\n"
         "• /кто пойдёт гулять сейчас\n"
         "• /кто сейчас пойдёт гулять\n"
@@ -269,15 +357,17 @@ async def help_kto(message: Message):
         "• /кто смотреть кино\n"
         "• /кто настолки через два часа у Евгена\n"
         "• /кто настолки в 18:30 у Евгена\n"
-        "• /кто 12\n"
-        "• /кто 16:45\n"
-        "• /кто через 5 минут\n"
-        "• /кто играть 7\n"
+        "• /кто завтра в настолки в 18:30 у Евгена\n"
+        "• /кто 10 июля в настолки в 17:00 у меня\n"
+        "• /кто 10.07 в настолки в 17:00 у меня\n"
+        "• /кто играть в 7\n"
         "• /кто жрать ёпта\n"
         "• /кто жрать епта\n"
-        "• /кто\n"
+        "• /кто точно жрать ёпта\n"
         "\n"
-        "<i>В этой команде есть несколько пасхалок :-)</i>"
+        "Созданный опрос можно остановить командой /stop_poll\n"
+        "\n"
+        "<i>В этой команде есть несколько пасхалок :-)</i>\n"
     )
 
     await message.reply(text=text, parse_mode="HTML")
@@ -286,3 +376,5 @@ async def help_kto(message: Message):
 def register(dp: Dispatcher):
     dp.register_message_handler(process_kto, commands=["кто", "kto"])
     dp.register_message_handler(help_kto, commands=['format'])
+    dp.register_message_handler(stop_kto, _bot_poll_filter, commands=['stop_poll'])
+    dp.register_message_handler(stop_kto_fallback, commands=['stop_poll'])

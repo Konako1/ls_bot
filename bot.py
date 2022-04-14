@@ -32,6 +32,7 @@ async def on_startup():
         BotCommand('features', 'Фичи бота.'),
         BotCommand('anek', 'Рандомный анек с АКБ.'),
         BotCommand('format', 'Формат голосования.'),
+        BotCommand('stop_poll', 'Остановить опрос.'),
         BotCommand('create_ping_command', 'Создать команду для пинга участников в чате.'),
         BotCommand('delete_ping_command', 'Удалить уже созданную команду.'),
         BotCommand('add_me', 'Добавить себя в команду для пинга.'),
@@ -48,10 +49,10 @@ async def on_shutdown():
 
 def register():
     # autist.setup(dp)
+    handlers.register_all(dp)
     tg_ls.setup(dp)
     test_group.setup(dp)
     ls_group.setup(dp)
-    handlers.register_all(dp)
 
 
 async def main():
