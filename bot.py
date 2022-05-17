@@ -24,6 +24,7 @@ async def on_startup():
     await bot.set_my_commands([
         BotCommand('kto', 'Команда которая преобразует введенное место и время в опрос. /format for more.'),
         BotCommand('say', 'Бесполезная матеша.'),
+        BotCommand('weather', 'Погода на ближайшее время.'),
         BotCommand('pasta', 'Рандомная паста.'),
         BotCommand('graveyard', 'Количество голубей на кладбище.'),
         BotCommand('all', 'Пинг всех участников конфы.'),

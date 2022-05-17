@@ -1,6 +1,10 @@
 from datetime import datetime
 import random
-from typing import Dict
+from typing import Dict, Optional
+
+import httpx
+from httpx import AsyncClient
+
 import vk_api
 from database import Db
 from utils import delayed_delete
@@ -19,6 +23,62 @@ from database import StatType, StickerInfo
 vk = vk_api.Vk()
 
 anek_cb = CallbackData('anek', 'anek_id', 'action')
+icon_id = {
+    200: '🌧',
+    201: '🌧',
+    202: '🌧',
+    210: '🌩',
+    211: '🌩',
+    212: '🌩',
+    221: '🌩',
+    230: '⛈',
+    231: '⛈',
+    232: '⛈',
+    300: '🌦',
+    301: '🌦',
+    302: '🌦',
+    310: '🌦',
+    311: '🌦',
+    312: '🌦',
+    313: '🌦',
+    314: '🌦',
+    321: '🌦',
+    500: '🌧',
+    501: '🌧',
+    502: '🌧',
+    503: '🌧',
+    504: '🌧',
+    511: '🌧',
+    521: '🌧',
+    522: '🌧',
+    531: '🌧',
+    600: '🌨',
+    601: '🌨',
+    602: '🌨',
+    611: '🌨',
+    612: '🌨',
+    613: '🌨',
+    615: '🌨',
+    616: '🌨',
+    620: '🌨',
+    621: '🌨',
+    622: '🌨',
+    701: '🌫',
+    711: '🌫',
+    721: '🌫',
+    731: '🌫',
+    741: '🌫',
+    751: '🌫',
+    761: '🌫',
+    762: '🌫',
+    771: '🌪',
+    781: '🌪',
+    800: '☀️',
+    801: '🌤',
+    802: '⛅️',
+    803: '🌥',
+    804: '☁️',
+}
 
 
 async def say(message: Message):
@@ -233,6 +293,58 @@ async def save_anek(query: CallbackQuery, callback_data: Dict[str, str]):
             await query.answer('Saved')
 
 
+def weather_url_builder(weather_type: str) -> str:
+    return f'https://api.openweathermap.org/data/2.5/{weather_type}'
+
+
+async def get_weather(session: AsyncClient, city: str, weather_type: str, cnt: Optional[int] = None):
+    response = await session.get(
+        url=weather_url_builder(weather_type),
+        params={
+            'lang': 'ru',
+            'units': "metric",
+            'appid': "0bd141f1e63d0cf406aaaecca13bf9ff",
+            'q': city,
+            'cnt': cnt
+        }
+    )
+    data = response.json()
+    return data
+
+
+async def weather(message: Message):
+    city = message.get_args()
+    if city == '':
+        city = 'Тюмень'
+    session = httpx.AsyncClient()
+
+    cnt = 4
+    api_response = await get_weather(session, city, 'forecast', cnt)
+    cod = int(api_response['cod'])
+    if cod // 100 != 2:
+        if cod == 404:
+            await message.reply('Такого города не существует')
+        else:
+            await message.reply('Пошел нахуй')
+        await session.aclose()
+        return
+
+    text = f"Погода для города <b>{api_response['city']['name']}</b>\n\n"
+    for time_range in range(api_response['cnt']):
+        api_data = api_response['list'][time_range]
+        api_weather = api_data['weather'][0]
+        if time_range == 0:
+            text += '<i><b>Сейчас</b></i>'
+        else:
+            text += f"<i><b>Через {time_range * 3}ч.</b></i>"
+        text += f"\n🌡 <b>{round(api_data['main']['temp'])}°</b>\n"\
+                f"{icon_id[api_weather['id']]} {str(api_weather['description']).capitalize()}\n"\
+                f"💨 <b>{round(api_data['wind']['speed'])} м/с</b>\n\n"
+
+    await message.reply(text)
+    await session.aclose()
+
+
 async def get_last_anek(message: Message):
     pass  # TODO
 
@@ -253,6 +365,8 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(get_graves_count, commands=['graveyard'])
     dp.register_message_handler(get_anek, commands=['anek'])
     dp.register_message_handler(features, commands=['features'])
+    dp.register_message_handler(weather, commands=['w'])
+    dp.register_message_handler(weather, commands=['weather'])
     dp.register_callback_query_handler(haha_handler, anek_cb.filter(action='haha'))
     dp.register_callback_query_handler(not_haha_handler, anek_cb.filter(action='not_haha'))
     dp.register_callback_query_handler(save_anek, anek_cb.filter(action='save'))
