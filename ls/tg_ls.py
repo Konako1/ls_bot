@@ -297,17 +297,37 @@ def weather_url_builder(weather_type: str) -> str:
     return f'https://api.openweathermap.org/data/2.5/{weather_type}'
 
 
-async def get_weather(session: AsyncClient, city: str, weather_type: str, cnt: Optional[int] = None):
-    response = await session.get(
-        url=weather_url_builder(weather_type),
-        params={
-            'lang': 'ru',
-            'units': "metric",
-            'appid': "0bd141f1e63d0cf406aaaecca13bf9ff",
-            'q': city,
-            'cnt': cnt
-        }
-    )
+def weather_url_builder_http(weather_type: str) -> str:
+    return f'http://api.openweathermap.org/data/2.5/{weather_type}'
+
+
+async def get_weather(session: AsyncClient, city: str, weather_type: str, cnt: Optional[int] = None) -> Optional[dict]:
+    try:
+        response = await session.get(
+            timeout=1,
+            url=weather_url_builder(weather_type),
+            params={
+                'lang': 'ru',
+                'units': "metric",
+                'appid': OWM_API,
+                'q': city,
+                'cnt': cnt
+            }
+        )
+    except httpx.ConnectTimeout:
+        try:
+            response = await session.get(
+                url=weather_url_builder_http(weather_type),
+                params={
+                    'lang': 'ru',
+                    'units': "metric",
+                    'appid': OWM_API,
+                    'q': city,
+                    'cnt': cnt
+                }
+            )
+        except httpx.ConnectTimeout:
+            return None
     data = response.json()
     return data
 
@@ -320,6 +340,10 @@ async def weather(message: Message):
 
     cnt = 4
     api_response = await get_weather(session, city, 'forecast', cnt)
+    if not api_response:
+        await message.reply('Конекшон тимеаут')
+        await session.aclose()
+        return
     cod = int(api_response['cod'])
     if cod // 100 != 2:
         if cod == 404:
