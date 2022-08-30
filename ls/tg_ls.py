@@ -332,12 +332,21 @@ async def get_weather(session: AsyncClient, city: str, weather_type: str, cnt: O
     return data
 
 
+def calculateTime(time_range: int, api_response: Optional[dict]):
+    timeZone = api_response['city']['timezone'] / 3600  # seconds to hours
+    myLocalTimeZone = 5  # datetime.now() uses Tyumen time cuz server is here
+    time = int(datetime.now().hour+time_range + (timeZone - myLocalTimeZone))
+
+    if time >= 24:
+        time = time-24
+    return time
+
+
 async def weather(message: Message):
     city = message.get_args()
     if city == '':
         city = 'Тюмень'
     session = httpx.AsyncClient()
-
     cnt = 4
     api_response = await get_weather(session, city, 'forecast', cnt)
     if not api_response:
@@ -360,7 +369,7 @@ async def weather(message: Message):
         if time_range == 0:
             text += '<i><b>Сейчас</b></i>'
         else:
-            text += f"<i><b>Через {time_range * 3}ч.</b></i>"
+            text += f"<i><b>В {calculateTime(time_range*3, api_response)}:{datetime.now().minute}</b></i>"
         text += f"\n🌡 <b>{round(api_data['main']['temp'])}°</b>\n"\
                 f"{icon_id[api_weather['id']]} {str(api_weather['description']).capitalize()}\n"\
                 f"💨 <b>{round(api_data['wind']['speed'])} м/с</b>\n\n"
