@@ -1,10 +1,9 @@
-from asyncio import run, create_task
+from asyncio import run
 from aiogram import Dispatcher, Bot
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.types import BotCommand, AllowedUpdates
 from aiogram.utils.exceptions import MessageNotModified
 import config
-import handlers
 from ls import tg_ls
 
 
@@ -20,17 +19,7 @@ async def ignore_exception(update, exception):
 
 async def on_startup():
     await bot.set_my_commands([
-        BotCommand('kto', 'Команда которая преобразует введенное место и время в опрос. /format for more.'),
         BotCommand('weather', 'Погода на ближайшее время.'),
-        BotCommand('all', 'Пинг всех участников конфы.'),
-        # BotCommand('tmn', 'Пинг всех участников из Тюмени.'),
-        # BotCommand('gamers', 'Пинг GAYмеров.'),
-        BotCommand('create_ping_command', 'Создать команду для пинга участников в чате.'),
-        BotCommand('delete_ping_command', 'Удалить уже созданную команду.'),
-        BotCommand('add_me', 'Добавить себя в команду для пинга.'),
-        BotCommand('delete_me', 'Удалить себя из команды для пинга.'),
-        BotCommand('ping_commands', 'Показать все доступные в чате команды.'),
-        BotCommand('my_commands', 'Показать все доступные мне команды.'),
     ]
     )
 
@@ -40,7 +29,6 @@ async def on_shutdown():
 
 
 def register():
-    handlers.register_all(dp)
     tg_ls.setup(dp)
 
 
