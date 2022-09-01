@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 import httpx
@@ -106,18 +106,15 @@ async def get_weather(session: AsyncClient, city: str, weather_type: str, cnt: O
 
 
 def calculate_time(time_range: int, api_response: Optional[dict]):
-    time_zone = 3 * api_response['city']['timezone'] / 3600  # seconds to hours
+    time_zone = api_response['city']['timezone'] / 3600  # seconds to hours
     my_local_time_zone = 5  # datetime.now() uses Tyumen time cuz server is here
-    time = int(datetime.now().hour+time_range + (time_zone - my_local_time_zone))
-    if time >= 24:
-        time = time-24
+    time_diff = time_range * 3 + (time_zone - my_local_time_zone)
+    time = datetime.now() + timedelta(hours=time_diff)
     return time
 
 
 def format_time(time_range: int, api_response: Optional[dict]):
-    hours = '{:02d}'.format(calculate_time(time_range, api_response))
-    minutes = '{:02d}'.format(datetime.now().minute)
-    return f"{hours}:{minutes}"
+    return calculate_time(time_range, api_response).strftime("%H:%M")
 
 
 async def weather(message: Message):
