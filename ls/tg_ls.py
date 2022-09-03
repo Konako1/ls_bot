@@ -253,8 +253,6 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(get_graves_count, commands=['graveyard'])
     dp.register_message_handler(get_anek, commands=['anek'])
     dp.register_message_handler(features, commands=['features'])
-    dp.register_message_handler(weather, commands=['w'])
-    dp.register_message_handler(weather, commands=['weather'])
     dp.register_callback_query_handler(haha_handler, anek_cb.filter(action='haha'))
     dp.register_callback_query_handler(not_haha_handler, anek_cb.filter(action='not_haha'))
     dp.register_callback_query_handler(save_anek, anek_cb.filter(action='save'))
