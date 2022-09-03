@@ -516,8 +516,9 @@ async def ping_users(message: Message):
         if command_id == -1:
             return
         usernames = await db.get_all_ping_usernames(command_id)
+    usernames.remove((message.from_user.username,))
     if not usernames:
-        await message.reply('В команде нет ни одного пользователя.')
+        await message.reply('В команде нет ни одного пользователя, либо только ты, шизоид')
         return
     msg = ''
     for username in usernames:
@@ -652,7 +653,7 @@ async def uzhe_smesharik(event: ChatMemberUpdated):
 
 def setup(dp: Dispatcher):
     dp.register_message_handler(delete_message, user_id=[users['konako'], users['gnome']], commands=['del'], chat_id=ls_group_id)
-    # dp.register_message_handler(all, commands=['all'])
+    dp.register_message_handler(all, commands=['all'])
     # dp.register_message_handler(tmn, commands=['tmn'], chat_id=ls_group_id)
     # dp.register_message_handler(gamers, commands=['gamers'], chat_id=ls_group_id)
     # dp.register_message_handler(senat, commands=['senat'], chat_id=ls_group_id)
