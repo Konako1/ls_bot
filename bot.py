@@ -30,7 +30,6 @@ async def on_startup():
         BotCommand('weather', 'Погода на ближайшее время.'),
         BotCommand('pasta', 'Рандомная паста.'),
         BotCommand('graveyard', 'Количество голубей на кладбище.'),
-        BotCommand('all', 'Пинг всех участников конфы.'),
         # BotCommand('tmn', 'Пинг всех участников из Тюмени.'),
         # BotCommand('gamers', 'Пинг GAYмеров.'),
         BotCommand('features', 'Фичи бота.'),

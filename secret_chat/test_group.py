@@ -12,9 +12,8 @@ from dataclasses import dataclass
 
 @dataclass()
 class FrameData:
-    counts: dict
-    max_count: int
-    max_count_frames: list
+    frame_count: int
+    frames: list
 
 
 async def say_to_ls(message: Message):
@@ -32,56 +31,49 @@ async def add_paste(message: Message):
             await message.reply('ok')
 
 
-def sort_top_frames(frames: list[tuple]) -> FrameData:
-    counts = dict()
+def sort_top_frames(frames: list[(int, int)]) -> FrameData:
     max_count = 0
-    max_count_frames = list()
+    frame_list = list()
     for frame in frames:
-        value = counts.get(frame[1])
-        if value is None:
-            counts.update(tuple[frame[0], 1])
-        else:
-            counts.update(tuple[frame[0], value + 1])
-
         if frame[1] > max_count:
             max_count = frame[1]
-            max_count_frames.clear()
-
-        max_count_frames.append(frame[0])
+            frame_list.clear()
+        if max_count == frame[1]:
+            frame_list.append(frame[0])
     return FrameData(
-        counts=counts,
-        max_count=max_count,
-        max_count_frames=max_count_frames,
+        frame_count=max_count,
+        frames=frame_list,
     )
 
 
 async def nice_pfp_counter(message: Message):
     mg = MediaGroup()
     async with Db() as db:
-        frames_count = await db.get_statistics(StatType().nice_pfp)
+        frames_count_all = await db.get_statistics(StatType().nice_pfp)
         frames_data = await db.get_frames_data()
 
     f_sorted = sort_top_frames(frames_data)
-    count = f_sorted.max_count
-    if count > 10:
-        r = randint(0, count - 10)
+    frames_count = len(f_sorted.frames)
+    print(frames_count)
+    if frames_count > 10:
+        r = randint(0, frames_count - 10)
         s = slice(r, r + 10)
     else:
-        s = slice(0, count)
-    for frame in f_sorted.max_count_frames[s]:
+        s = slice(0, frames_count)
+    for frame in f_sorted.frames[s]:
         mg.attach_photo(InputFile(frames_dir + f'pic{str(frame)}.jpg'), caption=frame)
     await message.bot.send_media_group(test_group_id, mg)
 
     answer = 'Стата по авам:'
-    for i in f_sorted.counts:
-        answer += f'\n{f_sorted.max_count - i} сохранено: {f_sorted.counts[f_sorted.max_count - i - 1]} штук'
-    answer += f'Всего найс ав: {frames_count}.'
+    for i in f_sorted.frames:
+        answer += f'\n{i} сохранено: {f_sorted.frame_count} штук'
+    answer += f'\nВсего найс ав: {frames_count_all}.'
     await message.answer(answer)
 
 
 async def get_similar_nice_pfp(message: Message):
     async with Db() as db:
-        frames = await db.get_frames_data()  # type: list[tuple]
+        frames = await db.get_frames_data()  # type: list[(int, int)]
     frames.sort()
     similar_frames = list()
     for i, frame in enumerate(frames):

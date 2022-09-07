@@ -221,7 +221,6 @@ async def get_member_title(message: Message, user_id: int) -> str:
 async def silence_info_check(user_id: int, title: str = None) -> SilenceInfo:
     async with Db() as db:
         silence_info = await db.get_user_silence_info(user_id)
-        print(f'{repr(silence_info.title)} | {silence_info.is_silenced} | {repr(title)}')
         if title is None:
             title = silence_info.title
         if silence_info.is_silenced is None:
@@ -268,7 +267,12 @@ async def unrestrict_and_promote_user(message: Message, user_id: int):
 
 
 async def silence(message: Message):
+    if message.from_user.id == 434975678 or (message.reply_to_message and message.reply_to_message.from_user.id == 434975678):
+        await message.reply('Мутить гелю нельзя')
+        return
     args = message.get_args()
+    if args == '':
+        args = 600
     if not args.isdigit():
         await message.reply('Укажи время в секундах')
         return

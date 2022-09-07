@@ -240,7 +240,7 @@ class Db:
             )
         return None
 
-    async def get_frames_data(self) -> Optional[list[tuple]]:
+    async def get_frames_data(self) -> Optional[list[(int, int)]]:
         cur = await self._conn.execute('SELECT frame, count FROM frames')
 
         rows = await cur.fetchall()
