@@ -1,4 +1,6 @@
 from asyncio import run, create_task
+from datetime import datetime
+
 from aiogram import Dispatcher, Bot
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.types import BotCommand, AllowedUpdates
@@ -6,7 +8,7 @@ from aiogram.utils.exceptions import MessageNotModified
 
 import traveling_days
 import handlers
-from ls import tg_ls
+from handlers import weather
 from secret_chat import ls_group, config, test_group, autist
 
 
@@ -58,6 +60,8 @@ def register():
 
 async def main():
     register()
+    if datetime.now().hour == 8 or datetime.now().hour == 7:
+        await bot.send_message(text=await weather.get_weather_message('Tyumen'), chat_id=config.ls_group_id)
     create_task(ls_group.dishwasher_timer(bot))
     create_task(traveling_days.now_playing_checker(bot, 5))
     await on_startup()

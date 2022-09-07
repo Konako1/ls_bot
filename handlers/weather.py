@@ -112,26 +112,17 @@ def calculate_time(time_range: int, api_response: Optional[dict]):
     return time.strftime("%H:%M")
 
 
-async def weather(message: Message):
-    city = message.get_args()
-    if city == '':
-        city = 'Тюмень'
+async def get_weather_message(city: str) -> str:
     session = httpx.AsyncClient()
     cnt = 4
     api_response = await get_weather(session, city, 'forecast', cnt)
     if not api_response:
-        await message.reply('Конекшон тимеаут')
         await session.aclose()
-        return
+        return 'Конекшон тимеаут'
     cod = int(api_response['cod'])
     if cod // 100 != 2:
-        if cod == 404:
-            await message.reply('Такого города не существует')
-        else:
-            await message.reply('Пошел нахуй')
         await session.aclose()
-        return
-
+        return 'Такого города не существует' if cod == 404 else 'Пошел нахуй'
     text = f"Погода для города <b>{api_response['city']['name']}</b>\n\n"
     for time_range in range(api_response['cnt']):
         api_data = api_response['list'][time_range]
@@ -140,12 +131,20 @@ async def weather(message: Message):
             text += '<i><b>Сейчас</b></i>'
         else:
             text += f"<i><b>В {calculate_time(time_range, api_response)}</b></i>"
-        text += f"\n🌡 <b>{round(api_data['main']['temp'])}°</b>\n"\
-                f"{icon_id[api_weather['id']]} {str(api_weather['description']).capitalize()}\n"\
+        text += f"\n🌡 <b>{round(api_data['main']['temp'])}°</b>\n" \
+                f"{icon_id[api_weather['id']]} {str(api_weather['description']).capitalize()}\n" \
                 f"💨 <b>{round(api_data['wind']['speed'])} м/с</b>\n\n"
 
-    await message.reply(text)
     await session.aclose()
+    return text
+
+
+async def weather(message: Message):
+    city = message.get_args()
+    if city == '':
+        city = 'Тюмень'
+    text = await get_weather_message(city)
+    await message.reply(text)
 
 
 def register(dp):
