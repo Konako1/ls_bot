@@ -326,8 +326,8 @@ class Db:
         rows = await cur.fetchall()
         return rows
 
-    async def get_all_ping_commands(self, chat_id: int) -> list[tuple[str]]:
-        cur = await self._conn.execute('SELECT command FROM ping_commands WHERE chat_id=?',
+    async def get_all_ping_commands(self, chat_id: int) -> list[tuple[str, int]]:
+        cur = await self._conn.execute('SELECT command, id FROM ping_commands WHERE chat_id=?',
                                        (chat_id, ))
         rows = await cur.fetchall()
         return rows

@@ -10,6 +10,7 @@ import traveling_days
 import handlers
 from handlers import weather
 from secret_chat import ls_group, config, test_group, autist
+from ls import tg_ls, pings
 
 
 storage = MemoryStorage()
@@ -56,6 +57,7 @@ def register():
     tg_ls.setup(dp)
     test_group.setup(dp)
     ls_group.setup(dp)
+    pings.setup(dp)
 
 
 async def main():
