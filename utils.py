@@ -2,7 +2,7 @@ import re
 from typing import Union
 
 from aiogram import Bot
-from aiogram.types import Message
+from aiogram.types import Message, ChatMemberUpdated
 from aiogram.utils.exceptions import MessageToDeleteNotFound, MessageCantBeDeleted
 from asyncio import sleep
 
@@ -59,3 +59,15 @@ async def delayed_delete(message: Message, sec: int, is_anek: bool = False):
         await message.answer(text=f'Какой то ебалай удалил {message.text!r}, потому лови {e} себе в ебальник')
     except MessageCantBeDeleted as e:
         await message.answer(text=f'Я не ебу че произошло, но я не могу чето там удалить, а конкретно: {message.text}')
+
+
+def somebody_left(event: ChatMemberUpdated):
+    return event.old_chat_member.status not in ("left", "kicked") \
+           and event.new_chat_member.status in ("left", "kicked") \
+           and not event.new_chat_member.user.is_bot
+
+
+def somebody_joined(event: ChatMemberUpdated):
+    return event.new_chat_member.status not in ("left", "kicked") \
+           and event.old_chat_member.status in ("left", "kicked") \
+           and not event.new_chat_member.user.is_bot

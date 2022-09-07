@@ -17,7 +17,7 @@ from aiogram.utils.exceptions import CantRestrictChatOwner, UserIsAnAdministrato
 from secret_chat import mc_server
 from secret_chat.config import users, ls_group_id, test_group_id, frames_dir
 from datetime import datetime
-from utils import StickerFilter, nice_pfp_filter, message_sender
+from utils import StickerFilter, nice_pfp_filter, message_sender, somebody_joined, somebody_left
 from asyncio import create_task, sleep
 from database import Db, StatType, SilenceInfo
 
@@ -419,18 +419,6 @@ async def commands(message: Message):
 
 
 # TODO: random bad apple video
-
-
-def somebody_left(event: ChatMemberUpdated):
-    return event.old_chat_member.status not in ("left", "kicked") \
-           and event.new_chat_member.status in ("left", "kicked") \
-           and not event.new_chat_member.user.is_bot
-
-
-def somebody_joined(event: ChatMemberUpdated):
-    return event.new_chat_member.status not in ("left", "kicked") \
-           and event.old_chat_member.status in ("left", "kicked") \
-           and not event.new_chat_member.user.is_bot
 
 
 def re_increment(match: Match[str]) -> str:
