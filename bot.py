@@ -10,8 +10,7 @@ import traveling_days
 import handlers
 from handlers import weather
 from secret_chat import ls_group, config, test_group, autist
-from ls import tg_ls, pings
-
+from ls import tg_ls, pings, schedule
 
 storage = MemoryStorage()
 bot = Bot(config.TG_TOKEN, parse_mode='HTML')
@@ -36,6 +35,8 @@ async def on_startup():
         BotCommand('anek', 'Рандомный анек с АКБ.'),
         BotCommand('format', 'Формат голосования.'),
         BotCommand('stop_poll', 'Остановить опрос.'),
+        BotCommand('next', 'Показать следующую пару.'),
+        BotCommand('save_modeus_fio', 'Прикрепить ФИО к акку.'),
         BotCommand('create_ping_command', 'Создать команду для пинга участников в чате.'),
         BotCommand('delete_ping_command', 'Удалить уже созданную команду.'),
         BotCommand('add_me', 'Добавить себя в команду для пинга.'),
@@ -52,6 +53,7 @@ async def on_shutdown():
 
 def register():
     # autist.setup(dp)
+    schedule.setup(dp)
     handlers.register_all(dp)
     tg_ls.setup(dp)
     test_group.setup(dp)

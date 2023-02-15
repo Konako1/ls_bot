@@ -142,3 +142,4 @@ cython_debug/
 *.json
 secret_chat/config.py
 ls.db
+/modeus/config.py

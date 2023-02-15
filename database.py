@@ -90,6 +90,9 @@ class Db:
                                  'command_id INTEGER NOT NULL REFERENCES ping_commands(id),'
                                  'user_id INTEGER NOT NULL REFERENCES ping_users(user_id),'
                                  'UNIQUE(command_id, user_id))')
+        await self._conn.execute('CREATE TABLE IF NOT EXISTS modeus('
+                                 'user_id INTEGER PRIMARY KEY NOT NULL,'
+                                 'modeus_id INTEGER NOT NULL)')
         await self._conn.commit()
 
     async def close(self):
@@ -156,6 +159,12 @@ class Db:
         await self._conn.execute('INSERT INTO ping_users(user_id, username) VALUES(?, ?)'
                                  'ON CONFLICT(user_id) DO UPDATE SET username=?',
                                  (user_id, username, username))
+        await self._conn.commit()
+
+    async def add_modeus_user(self, user_id: int, modeus_id: str):
+        await self._conn.execute('INSERT INTO modeus(user_id, modeus_id) VALUES(?, ?)'
+                                 'ON CONFLICT(user_id) DO UPDATE SET modeus_id=?',
+                                 (user_id, modeus_id, modeus_id))
         await self._conn.commit()
 
     async def bind_command_user(self, user_id: int, command_id: int) -> bool:
@@ -345,6 +354,14 @@ class Db:
             if command_id in user_commands_id_list:
                 result.append(command)
         return result
+
+    async def get_modeus_id(self, user_id: int) -> Optional[str]:
+        cur = await self._conn.execute('SELECT modeus_id FROM modeus WHERE user_id=?',
+                                       (user_id,))
+        row = await cur.fetchone()
+        if row is not None:
+            return row[0]
+        return None
 
     async def remove_frame(self, frame: int) -> Optional[bool]:
         cur = await self._conn.execute('SELECT count FROM frames WHERE frame=?',
