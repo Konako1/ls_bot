@@ -1,13 +1,13 @@
 import re
 from typing import Optional
 
-from aiogram import Dispatcher, Bot
+from aiogram import Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import StatesGroup, State
+from aiogram.dispatcher.handler import SkipHandler
 from aiogram.types import Message, ChatMemberAdministrator, ForceReply, ChatMemberUpdated
 
-import utils
 from database import Db
 
 
@@ -156,7 +156,7 @@ async def ping_users(message: Message):
     async with Db() as db:
         command_id = await db.get_ping_command_id(message.chat.id, command)
         if command_id == -1:
-            return
+            raise SkipHandler()
         usernames = await db.get_all_ping_usernames(command_id)
     if not usernames:
         await message.reply('В команде нет ни одного пользователя.')

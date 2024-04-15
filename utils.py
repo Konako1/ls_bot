@@ -71,3 +71,13 @@ def somebody_joined(event: ChatMemberUpdated):
     return event.new_chat_member.status not in ("left", "kicked") \
            and event.old_chat_member.status in ("left", "kicked") \
            and not event.new_chat_member.user.is_bot
+
+
+def convert(converter: dict, string: str) -> str:
+    result = ''
+    for letter in string.lower():
+        new_letter = letter
+        if letter in converter.keys():
+            new_letter = converter[letter]
+        result += new_letter.upper()
+    return result

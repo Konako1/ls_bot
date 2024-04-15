@@ -1,4 +1,4 @@
-from asyncio import run, create_task
+from asyncio import run
 from datetime import datetime
 
 from aiogram import Dispatcher, Bot
@@ -6,11 +6,12 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.types import BotCommand, AllowedUpdates
 from aiogram.utils.exceptions import MessageNotModified
 
-import traveling_days
 import handlers
 from handlers import weather
-from secret_chat import ls_group, config, test_group, autist
-from ls import tg_ls, pings, schedule
+from modeus.modeus_middleware import ModeusMiddleware
+from modeus.modeus_api import ModeusApi
+from secret_chat import ls_group, config, test_group
+from ls import tg_ls, pings, schedule, seven_tv
 
 storage = MemoryStorage()
 bot = Bot(config.TG_TOKEN, parse_mode='HTML')
@@ -29,13 +30,13 @@ async def on_startup():
         BotCommand('weather', 'Погода на ближайшее время.'),
         BotCommand('pasta', 'Рандомная паста.'),
         BotCommand('graveyard', 'Количество голубей на кладбище.'),
-        # BotCommand('tmn', 'Пинг всех участников из Тюмени.'),
-        # BotCommand('gamers', 'Пинг GAYмеров.'),
-        BotCommand('features', 'Фичи бота.'),
+        BotCommand('help', 'Помогите'),
         BotCommand('anek', 'Рандомный анек с АКБ.'),
         BotCommand('format', 'Формат голосования.'),
         BotCommand('stop_poll', 'Остановить опрос.'),
         BotCommand('next', 'Показать следующую пару.'),
+        BotCommand('day', 'Показать пары на день (+7).'),
+        BotCommand('fc_toggle', 'Убрать/включить физру в выдачу.'),
         BotCommand('save_modeus_fio', 'Прикрепить ФИО к акку.'),
         BotCommand('create_ping_command', 'Создать команду для пинга участников в чате.'),
         BotCommand('delete_ping_command', 'Удалить уже созданную команду.'),
@@ -51,26 +52,33 @@ async def on_shutdown():
     pass
 
 
+async def setup_middlewares():
+    # modeus middleware
+    modeus_api = ModeusApi()
+    await modeus_api.endless_token_updater()
+    dp.middleware.setup(ModeusMiddleware(modeus_api))
+
+
 def register():
-    # autist.setup(dp)
     schedule.setup(dp)
     handlers.register_all(dp)
     tg_ls.setup(dp)
     test_group.setup(dp)
-    ls_group.setup(dp)
+    seven_tv.setup(dp)
     pings.setup(dp)
+    ls_group.setup(dp)
 
 
 async def main():
     register()
+    await setup_middlewares()
     if datetime.now().hour == 8 or datetime.now().hour == 7:
         await bot.send_message(text=await weather.get_weather_message('Tyumen'), chat_id=config.ls_group_id)
-    create_task(ls_group.dishwasher_timer(bot))
-    create_task(traveling_days.now_playing_checker(bot, 5))
+    #    create_task(traveling_days.now_playing_checker(bot, 5))
     await on_startup()
     try:
         await dp.skip_updates()
-        await dp.start_polling(allowed_updates=AllowedUpdates.all())
+        await dp.start_polling()
     finally:
         await on_shutdown()
 

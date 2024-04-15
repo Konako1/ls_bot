@@ -1,1 +1,1 @@
-cmd /k "" bot.py
+cmd /k "C:\Users\Konako\Desktop\a\programing\projects\ls_bot\venv\Scripts\python.exe" bot.py

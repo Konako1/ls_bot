@@ -1,23 +1,26 @@
 import asyncio
 import logging
+import os
 from collections import Callable
+from json import JSONDecodeError
 from re import Match
 from typing import Optional
 
-from aiogram import Dispatcher, Bot
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters import Text
-from aiogram.dispatcher.filters.state import StatesGroup, State
-from aiogram.dispatcher.handler import SkipHandler
-from aiogram.types import Message, ContentTypes, InputFile, InlineKeyboardMarkup, \
-    InlineKeyboardButton, CallbackQuery, ChatMemberUpdated, ChatMemberAdministrator, ChatPermissions, ForceReply
-from aiogram.utils.exceptions import CantRestrictChatOwner, UserIsAnAdministratorOfTheChat, CantRestrictSelf, BadRequest
+import httpx
+import matplotlib.pyplot as pyplot
 
+from aiogram import Dispatcher, Bot
+from aiogram.dispatcher.handler import SkipHandler
+from aiogram.types import Message, ContentTypes, InputFile, ChatMemberUpdated, ChatMemberAdministrator, ChatPermissions, \
+    InlineQueryResultArticle, InlineQuery, InputTextMessageContent
+from aiogram.utils.exceptions import CantRestrictChatOwner, UserIsAnAdministratorOfTheChat, CantRestrictSelf, \
+    InvalidHTTPUrlContent
+
+from modeus.modeus_api import ModeusApi
 from secret_chat import mc_server
 from secret_chat.config import users, ls_group_id, test_group_id, frames_dir
 from datetime import datetime
-from utils import StickerFilter, nice_pfp_filter, message_sender, somebody_joined, somebody_left
+from utils import StickerFilter, nice_pfp_filter, message_sender, somebody_joined, somebody_left, convert
 from asyncio import create_task, sleep
 from database import Db, StatType, SilenceInfo
 
@@ -26,6 +29,22 @@ import random
 
 
 saved_messages = []
+saved_forwards = []
+not_replied_messages = []
+converter = {
+        'e': 'е',
+        't': 'т',
+        'y': 'у',
+        'o': 'о',
+        'p': 'р',
+        'a': 'а',
+        'h': 'н',
+        'k': 'к',
+        'x': 'х',
+        'c': 'с',
+        'b': 'в',
+        'm': 'м',
+    }
 
 
 def id_converter(tg_id: list, name: str) -> str:
@@ -180,9 +199,15 @@ async def server_status(message: Message):
     await message.reply(text)
 
 
+async def modeus_status(message: Message, modeus_api: ModeusApi):
+    response = modeus_api.last_response
+    text = f'{response.status_code}: {response.reason_phrase}'
+    await message.reply(text)
+
+
 async def timecode(message: Message):
     text = message.text
-    if '?t=' in text:
+    if '&t=' in text:
         await message.answer('( таймкод на месте )')
 
 
@@ -250,7 +275,6 @@ async def set_custom_title(message: Message):
 
 
 async def unrestrict_and_promote_user(message: Message, user_id: int):
-    chat_id = message.chat.id
     await message.chat.restrict(
         user_id,
         permissions=ChatPermissions(
@@ -267,7 +291,7 @@ async def unrestrict_and_promote_user(message: Message, user_id: int):
 
 
 async def silence(message: Message):
-    if message.from_user.id == 434975678 or (message.reply_to_message and message.reply_to_message.from_user.id == 434975678):
+    if message.from_user.id == users['gelya'] or (message.reply_to_message and message.reply_to_message.from_user.id == users['gelya']):
         await message.reply('Мутить гелю нельзя')
         return
     args = message.get_args()
@@ -361,7 +385,11 @@ async def promote(message: Message, user_id: int = None, set_args: int = None):
             can_pin_messages=True,
             can_change_info=True,
             can_manage_chat=True,
-            can_manage_voice_chats=True,
+            can_manage_video_chats=True,
+            can_manage_topics=True,
+            can_post_stories=True,
+            can_edit_stories=True,
+            can_delete_stories=True,
         )
         answer = 'promoted to admin'
     if args == 'giga' or set_args == 1:
@@ -372,10 +400,14 @@ async def promote(message: Message, user_id: int = None, set_args: int = None):
             can_pin_messages=True,
             can_change_info=True,
             can_manage_chat=True,
-            can_manage_voice_chats=True,
+            can_manage_video_chats=True,
             can_promote_members=True,
             can_delete_messages=True,
-            can_restrict_members=True
+            can_restrict_members=True,
+            can_manage_topics=True,
+            can_post_stories=True,
+            can_edit_stories=True,
+            can_delete_stories=True,
         )
         answer = 'promoted to giga admin'
         
@@ -389,32 +421,266 @@ async def promote(message: Message, user_id: int = None, set_args: int = None):
 
 
 async def niggers(message: Message):
-    msg = 'пидорасы'
-    if message.from_user.id == users['eger']:
-        msg = 'сам ты пидор, а не негры'
-    await message.reply(msg)
+    msg = await message.reply('пидорасы')
+    await msg.reply('база')
 
 
 async def commands(message: Message):
-    text = f'Список комманд:\n' \
+    text = f'/pasta - вкидывает сохраненную пасту.\n' \
+           f'/say - матеша.\n' \
+           f'/anek - анек из АКБ.\n' \
            f'/кто - Команда которая преобразует введенное место и время в опрос. /format for more.\n' \
-           f'/status - Статус майнкрафт сервера.\n' \
-           f'/pasta - Рандомная паста.\n' \
-           f'/say - Бесполезная матеша.\n' \
            f'/graveyard - Количество голубей на кладбище.\n' \
-           f'/rollback - удаляет ласт фрейм из найс ав.\n' \
-           f'/mute - запрещает пользователю писать в чат.\n' \
-           f'/unmute - разрешает пользователю писать в чат.\n' \
-           f'/set_title - ставит пользователю роль.\n' \
+           f'/w /weather - Погода.\n' \
+           f'/weather_geo - Установить погоду для себя.\n' \
            f'Фичи:\n' \
-           f'Словосочетания "голубь сдох" или "минус голубь" добавят одного голубя на кладбище.\n' \
-           f'С некоторым шансом бот может кинуть медведя во время спама медведей.\n' \
-           f'Кидает музяку на карточку Девил триггера.\n' \
-           f'Меняет название конфы при заходе и ливе.\n'
+           f'"голубь сдох" или "минус голубь".\n' \
+           f'Мибиб.\n' \
+           f'Пинги.\n'
+    if message.chat.id == ls_group_id:
+        text += f'\nДоп. команды для этой конфы:\n' \
+               f'/set_title /st /title - ставит пользователю роль.\n' \
+               f'/modeus_status - статус сервака евгена.\n' \
+               f'/promote - кинуть права пользователю (giga).\n' \
+               f'/wysi - 727.\n' \
+               f'/predict - Artificial Intelligence.\n' \
+               f'/furry - 💀.\n' \
+               f'Фичи:\n' \
+               f'Кидает музяку на карточку Девил триггера.\n' \
+               f'Меняет название конфы при заходе и ливе.\n' \
+               f'Таймкоды.\n' \
+               f'Может вкинуть базы.\n' \
+               f'Бебра.\n' \
+               f'Негры.\n'
 
     await message.answer(
         text=text,
     )
+
+
+async def baza(message: Message):
+    rand = random.randint(0, 500)
+    if rand == 0:
+        phrases = [
+        'база',
+        'фид',
+        'умом',
+        'летающий пудж',
+        'чел, хорош',
+        'базированная база',
+        ]
+        await message.reply(
+            random.choice(phrases)
+        )
+    raise SkipHandler()
+
+
+async def wysi_correction():
+    async with Db() as db:
+        w = await db.get_wysi()
+
+    for item in w:
+        is_edited = False
+        reg_num = str(item[1])
+        id = item[0]
+        for i, char in enumerate(reg_num):
+            if str(char).islower():
+                char = char.upper()
+                reg_num = reg_num[:i] + char + reg_num[i + 1:]
+                is_edited = True
+            if char in converter.keys():
+                reg_num = reg_num[:i] + converter[char] + reg_num[i+1:]
+                is_edited = True
+        if is_edited:
+            async with Db() as db:
+                await db.delete_wysi(id)
+                await db.add_wysi(reg_num, item[2])
+
+    return
+
+
+async def wysi(message: Message):
+    if message.get_args() == '':
+        await get_wysi(message)
+        return
+
+    match_wysi = re.search(r'[etyopahkxcbmукенхваросмт](\d{3})[etyopahkxcbmукенхваросмт]{2}', message.text, re.I)
+    match_region = re.search(r'(?P<x>ru)?(\d{1,3})(?(x)|ru)', message.text, re.I)
+    if match_wysi.group(1) != '727':
+        return await message.reply('WYDSI 💀💀💀')
+    async with Db() as db:
+        await db.add_wysi(convert(converter, match_wysi.group()), match_region.group(2) if match_region is not None else None)
+    #await message.reply('WYSI 😱😱😱')
+    await message.reply_animation(animation='CgACAgQAAx0CV1p3VwABCYdjZKyRugoh6naORX5oSwVzbG2vi1kAAocCAAKgt4xSdN8kzRD3WesvBA')
+
+
+async def wysi_fix(message: Message):
+    async with Db() as db:
+        items = await db.get_wysi()
+
+    updated_items = 0
+    for item in items:
+        result = convert(converter, item[1])
+        if result != item[1]:
+            updated_items += 1
+            async with Db() as db:
+                await db.update_wysi(item[0], result, item[2])
+
+    await message.reply(f'Обновлено {updated_items} записей')
+
+
+async def get_wysi(message: Message):
+    async with Db() as db:
+        items = await db.get_wysi()
+    regs = {}
+    regs_count = 0
+    for item in items:
+        regs_count += 1
+        reg_num = str(item[1]).replace('727', '')
+        key_met = False
+        for key in regs.keys():
+            if reg_num == key:
+                regs[key] = regs[key] + 1
+                key_met = True
+                break
+        if not key_met:
+            regs[reg_num] = 1
+
+    regs = dict(sorted(regs.items(), key=lambda item: item[1]))
+
+    pyplot.figure(figsize=(11, 11))
+    pyplot.pie(regs.values(), labels=regs.keys(),  autopct='%1.1f%%', startangle=90)
+    pyplot.title(f'WYSI ({regs_count})')
+
+    cwd = os.getcwd()
+    if not os.path.exists(cwd + '/plots'):
+        os.mkdir('plots')
+
+    pic_path = f"plots/output{len(os.listdir(cwd + '/plots'))+1}.jpg"
+    pyplot.savefig(pic_path, bbox_inches='tight', dpi=200)
+    await message.reply_photo(InputFile(pic_path))
+
+
+async def artificial_intelligence(message: Message):
+    prediction = random.choice(['Прокнет', 'Не прокнет'])
+    await message.reply(prediction)
+
+
+async def forwarded_replayer(message: Message):
+    if message.forward_from_chat:
+        if message.date.timestamp() in saved_forwards:
+            pass
+        else:
+            saved_forwards.append(message.date.timestamp())
+            member = await message.chat.get_member(message.from_user.id)
+            title = member['custom_title']
+            await message.reply(f'Переслал <b>{title}</b>')
+    raise SkipHandler()
+
+
+async def delayed_delete(message: Message, sec: int):
+    await sleep(sec)
+    if message.message_id in not_replied_messages:
+        try:
+            await message.delete()
+        except Exception:
+            pass
+
+
+async def furry_reply_detector(message: Message):
+    if message.reply_to_message and message.reply_to_message.message_id in not_replied_messages:
+        not_replied_messages.remove(message.reply_to_message.message_id)
+    raise SkipHandler()
+
+
+def get_furry_link(tags: str):
+    max = 9449779
+    porn_id = random.randint(1, max)
+    if tags is not None:
+        link = f'https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&tags={tags}&limit=1000'
+    else:
+        link = f'https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&id={porn_id}'
+    return link
+
+
+async def furry(tags: str, depth: int = 0) -> tuple[str, str]:
+    if depth > 1:
+        raise IndexError()
+    link = get_furry_link(tags)
+    session = httpx.AsyncClient()
+    try:
+        response = await session.get(url=link)
+        json = response.json()
+    except OSError or JSONDecodeError:
+        return await furry(tags, depth + 1)
+
+    try:
+        if tags is not None:
+            rnd = random.randint(0, len(json) - 1)
+            post = json[rnd]
+            file: str = post['file_url'].removeprefix('\'').removesuffix('\'')
+            file_id = post['id']
+        else:
+            file: str = json[0]['file_url'].removeprefix('\'').removesuffix('\'')
+            file_id = json[0]['id']
+
+        post_link = f'https://rule34.xxx/index.php?page=post&s=view&id={file_id}'
+        caption = f"<a href=\"{post_link}\">фурри</a>\n{f'tag: {tags}' if tags is not None else ''}"
+
+        return file, caption
+    except InvalidHTTPUrlContent:
+        return await furry(tags, depth + 1)
+
+
+async def i_fucking_hate_furries(message: Message):
+    tags = message.get_args()
+    try:
+        file, caption = await furry(tags)
+    except IndexError:
+        await message.reply('No results')
+        return
+
+    if file.endswith('gif'):
+        msg = await message.reply_animation(file, has_spoiler=True, caption=caption)
+    elif file.endswith('mp4'):
+        msg = await message.reply_video(file, has_spoiler=True, caption=caption)
+    elif file.endswith('jpg') or file.endswith('jpeg') or file.endswith('png'):
+        msg = await message.reply_photo(file, has_spoiler=True, caption=caption)
+    else:
+        msg = await message.reply(f'url: {file}\n\nNot implemented currently')
+
+    not_replied_messages.append(msg.message_id)
+    not_replied_messages.append(message.message_id)
+    create_task(delayed_delete(message, 600))
+    create_task(delayed_delete(msg, 600))
+
+
+async def i_fucking_hate_furries_autocomplete(inline_query: InlineQuery):
+    args = inline_query.query
+    url = f'https://ac.rule34.xxx/autocomplete.php?q={args}'
+    session = httpx.AsyncClient()
+    try:
+        response = await session.get(
+            url=url,
+        )
+        json = response.json()
+    except Exception as e:
+        print(e)
+        return
+
+    results = []
+    for i, label in enumerate(json):
+        if i == 11:
+            break
+
+        results.append(InlineQueryResultArticle(
+            id=label["value"],
+            title=label["label"],
+            input_message_content=InputTextMessageContent(f'/furry {label["value"]}')
+        ))
+        i += 1
+
+    msg = await inline_query.answer(results=results)
 
 
 # TODO: add hpb to schedule
@@ -462,13 +728,9 @@ async def uzhe_smesharik(event: ChatMemberUpdated):
 
 
 def setup(dp: Dispatcher):
-    dp.register_message_handler(delete_message, user_id=[users['konako'], users['gnome']], commands=['del'], chat_id=ls_group_id)
-    # dp.register_message_handler(all, commands=['all'])
-    # dp.register_message_handler(tmn, commands=['tmn'], chat_id=ls_group_id)
-    # dp.register_message_handler(gamers, commands=['gamers'], chat_id=ls_group_id)
-    # dp.register_message_handler(senat, commands=['senat'], chat_id=ls_group_id)
-    dp.register_message_handler(timecode, regexp=re.compile(r'https://youtu\.be/', re.I), chat_id=ls_group_id)
-    dp.register_message_handler(set_custom_title, commands=['set_title'], chat_id=ls_group_id)
+    dp.register_message_handler(commands, commands=['help'])
+    dp.register_message_handler(timecode, regexp=re.compile(r'(https://youtu\.be/|https://www\.twitch\.tv)', re.I), chat_id=ls_group_id)
+    dp.register_message_handler(set_custom_title, commands=['title', 'set_title', 'st'], chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, nice_pfp_filter, chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD0xAAAh3DcUk', is_nice=True), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(nice_pfp, StickerFilter('AgAD-BQAAs57cEk', is_nice=False), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
@@ -477,14 +739,23 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(devil_trigger, StickerFilter('AgAD_w4AAo5aWEk'), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(devil_trigger, StickerFilter('AgADpRQAAt8mkEs'), content_types=ContentTypes.STICKER, chat_id=ls_group_id)
     dp.register_message_handler(test, user_id=users['acoola'], chat_id=ls_group_id)
-    dp.register_message_handler(commands, commands=['commands', 'c'], chat_id=ls_group_id)
     dp.register_message_handler(get_pic_from_num, commands=['pic'], chat_id=[test_group_id, ls_group_id])
     dp.register_message_handler(nice_pfp_rollback, commands=['rollback'], chat_id=ls_group_id, user_id=users['konako'])
     dp.register_message_handler(be_bra, regexp=re.compile(r'\bбе\b', re.I), chat_id=ls_group_id)
     dp.register_message_handler(niggers, regexp=re.compile(r'\bнегры\b', re.I), chat_id=ls_group_id)
     dp.register_message_handler(server_status, commands='status', chat_id=ls_group_id)
+    dp.register_message_handler(modeus_status, commands=['modeus_status'], chat_id=ls_group_id)
     # dp.register_message_handler(silence, commands=['mute'], chat_id=ls_group_id)
     # dp.register_message_handler(unsilence, commands=['unmute'], chat_id=ls_group_id)
     dp.register_message_handler(promote, commands=['promote'], chat_id=ls_group_id, user_id=users['konako'])
+    dp.register_message_handler(wysi, chat_id=ls_group_id, commands=['wysi'])
+    dp.register_message_handler(wysi_fix, chat_id=ls_group_id, commands=['wysi_fix'])
+    dp.register_message_handler(artificial_intelligence, chat_id=ls_group_id, commands=['predict'])
+    dp.register_message_handler(i_fucking_hate_furries, commands=['furry', 'f'], chat_id=ls_group_id)
+    dp.register_inline_handler(i_fucking_hate_furries_autocomplete)
+    dp.register_message_handler(baza, chat_id=ls_group_id)
     dp.register_chat_member_handler(novichok, somebody_joined, chat_id=ls_group_id)
     dp.register_chat_member_handler(uzhe_smesharik, somebody_left, chat_id=ls_group_id)
+
+    dp.register_message_handler(forwarded_replayer, content_types=ContentTypes.ANY, chat_id=ls_group_id)
+    dp.register_message_handler(furry_reply_detector, content_types=ContentTypes.ANY, chat_id=ls_group_id)

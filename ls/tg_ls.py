@@ -7,11 +7,11 @@ from utils import delayed_delete
 from secret_chat.simple_math import math
 from secret_chat.test_group import get_say_statistics, get_num_as_pow
 from aiogram import Dispatcher
-from aiogram.types import Message, ContentTypes, InputFile, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.types import Message, ContentTypes, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from aiogram.dispatcher.filters import Text
 from aiogram.utils.exceptions import MessageTextIsEmpty
 from aiogram.utils.callback_data import CallbackData
-from secret_chat.config import test_group_id, spring_05_preview_direction
+from secret_chat.config import test_group_id
 from asyncio import create_task
 from utils import StickerFilter
 from database import StatType, StickerInfo
@@ -237,14 +237,6 @@ async def get_last_anek(message: Message):
     pass  # TODO
 
 
-async def features(message: Message):
-    await message.reply(
-        text=f'Фичи:\n'
-             f'Словосочетания "голубь сдох" или "минус голубь" добавят одного голубя на кладбище.\n'
-             f'С некоторым шансом бот может кинуть медведя во время спама медведей.'
-    )
-
-
 def setup(dp: Dispatcher):
     dp.register_message_handler(pasta, commands=['pasta'])
     dp.register_message_handler(say, commands=['say'])
@@ -252,7 +244,6 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(minus_chel, Text(contains='голубь', ignore_case=True))
     dp.register_message_handler(get_graves_count, commands=['graveyard'])
     dp.register_message_handler(get_anek, commands=['anek'])
-    dp.register_message_handler(features, commands=['features'])
     dp.register_callback_query_handler(haha_handler, anek_cb.filter(action='haha'))
     dp.register_callback_query_handler(not_haha_handler, anek_cb.filter(action='not_haha'))
     dp.register_callback_query_handler(save_anek, anek_cb.filter(action='save'))

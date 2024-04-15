@@ -92,7 +92,18 @@ class Db:
                                  'UNIQUE(command_id, user_id))')
         await self._conn.execute('CREATE TABLE IF NOT EXISTS modeus('
                                  'user_id INTEGER PRIMARY KEY NOT NULL,'
-                                 'modeus_id INTEGER NOT NULL)')
+                                 'modeus_id TEXT NOT NULL,'
+                                 'fc_toggle INTEGER NOT NULL DEFAULT 1)')
+        await self._conn.execute('CREATE TABLE IF NOT EXISTS wysi('
+                                 'id INTEGER PRIMARY KEY AUTOINCREMENT,'
+                                 'regnum TEXT NOT NULL,'
+                                 'region INTEGER,'
+                                 'date_created DATE)')
+        await self._conn.execute('CREATE TABLE IF NOT EXISTS locations('
+                                 'id INTEGER PRIMARY KEY AUTOINCREMENT,'
+                                 'city TEXT NOT NULL,'
+                                 'user_id INTEGER,'
+                                 'UNIQUE(city, user_id))')
         await self._conn.commit()
 
     async def close(self):
@@ -237,6 +248,11 @@ class Db:
                                  (1, message_id, chat_id))
         await self._conn.commit()
 
+    async def update_modeus_fc_toggle(self, user_id: int, modeus_id: str, toggle: int):
+        await self._conn.execute('UPDATE modeus SET fc_toggle=? WHERE user_id=? AND modeus_id=?',
+                                 (toggle, user_id, modeus_id))
+        await self._conn.commit()
+
     async def get_frame_stat(self, frame: int) -> Optional[Frame]:
         cur = await self._conn.execute('SELECT count, datetime FROM frames WHERE frame=?',
                                        (frame, ))
@@ -363,6 +379,14 @@ class Db:
             return row[0]
         return None
 
+    async def get_modeus_fc_toggle(self, user_id: int) -> Optional[str]:
+        cur = await self._conn.execute('SELECT fc_toggle FROM modeus WHERE user_id=?',
+                                       (user_id,))
+        row = await cur.fetchone()
+        if row is not None:
+            return row[0]
+        return None
+
     async def remove_frame(self, frame: int) -> Optional[bool]:
         cur = await self._conn.execute('SELECT count FROM frames WHERE frame=?',
                                        (frame, ))
@@ -422,3 +446,37 @@ class Db:
             is_saved = True if int(row[0]) == 1 else False
             return is_saved
         return None
+
+    async def add_wysi(self, regnum: str, region: Optional[int]):
+        await self._conn.execute('INSERT INTO wysi(regnum, region, date_created) VALUES (?, ?, CURRENT_TIMESTAMP)',
+                                 (regnum, region))
+
+    async def update_wysi(self, id: int, regnum: str, region: Optional[int]):
+        await self._conn.execute('UPDATE wysi SET  regnum=?, region=? WHERE id=?',
+                                 (regnum, region, id))
+
+    async def get_wysi(self) -> list[tuple[str]]:
+        cur = await self._conn.execute('SELECT * FROM wysi')
+        return await cur.fetchall()
+
+    async def delete_wysi(self, id: int):
+        await self._conn.execute('DELETE FROM wysi WHERE id=?', (id, ))
+
+    async def add_location(self, city: str, user_id: int):
+        await self._conn.execute('INSERT INTO locations(city, user_id) VALUES (?, ?)',
+                                 (city, user_id))
+
+    async def update_location(self, city: str, user_id: int):
+        await self._conn.execute('UPDATE locations SET city=? WHERE user_id=?',
+                                 (city, user_id))
+
+    async def get_location(self, user_id: int) -> Optional[tuple[int, str]]:
+        cur = await self._conn.execute('SELECT id, city FROM locations WHERE user_id=?',
+                                       (user_id,))
+        row = await cur.fetchone()
+        return row
+
+    async def delete_location(self, id: int):
+        await self._conn.execute('DELETE FROM locations WHERE id=?', (id, ))
+
+

@@ -1,7 +1,5 @@
-from pprint import pprint
-
-from aiogram import Dispatcher, Bot
-from aiogram.types import Message, InputFile, MediaGroup, ContentTypes
+from aiogram import Dispatcher
+from aiogram.types import Message, InputFile, MediaGroup
 
 from secret_chat.config import ls_group_id, test_group_id, frames_dir
 from random import randint
@@ -139,7 +137,8 @@ async def help(message: Message):
              f"/nice_pfp - get nice_pfp count\n"
              f"/say - get say statistics\n"
              f"/pic - get pic from number\n"
-             f"/get_similar_pfp - returns similar pfp",
+             f"/get_similar_pfp - returns similar pfp\n"
+             f"{message.chat.id}",
         chat_id=test_group_id,
     )
 

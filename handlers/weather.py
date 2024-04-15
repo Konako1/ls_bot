@@ -2,8 +2,11 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import httpx
-from aiogram.types import Message
-from httpx import AsyncClient
+import geocoder
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from httpx import AsyncClient, Timeout
+
+from database import Db
 from secret_chat.config import OWM_API
 
 
@@ -74,9 +77,10 @@ def weather_url_builder_http(weather_type: str) -> str:
 
 
 async def get_weather(session: AsyncClient, city: str, weather_type: str, cnt: Optional[int] = None) -> Optional[dict]:
+    timeout = Timeout(10.0, read=None)
     try:
         response = await session.get(
-            timeout=1,
+            timeout=timeout,
             url=weather_url_builder(weather_type),
             params={
                 'lang': 'ru',
@@ -142,10 +146,55 @@ async def get_weather_message(city: str) -> str:
 async def weather(message: Message):
     city = message.get_args()
     if city == '':
-        city = 'Тюмень'
+        async with Db() as db:
+            location = await db.get_location(message.from_user.id)
+        if location is None:
+            city = 'Тюмень'
+        else:
+            city = location[1]
     text = await get_weather_message(city)
     await message.reply(text)
 
 
+def get_keyboard():
+    keyboard = ReplyKeyboardMarkup(one_time_keyboard=True)
+    button = KeyboardButton("Слить все свои личные данные", request_location=True)
+    no_button = KeyboardButton("Пошел нахуй!!!")
+    keyboard.add(button)
+    keyboard.add(no_button)
+    return keyboard
+
+
+async def handle_location(message: Message):
+    if message.chat.type != 'private':
+        return
+    await message.delete()
+    lat = message.location.latitude
+    lon = message.location.longitude
+    location = geocoder.osm(f'{lat},{lon}')
+    try:
+        city = location.current_result.city
+    except Exception as e:
+        return await message.reply('Брат я не ебу где ты')
+
+    async with Db() as db:
+        location = await db.get_location(message.from_user.id)
+        if location is None:
+            await db.add_location(city, message.from_user.id)
+        else:
+            if location[1] != city:
+                await db.update_location(city, message.from_user.id)
+    await message.answer('Личные данные слиты в ФСБ', reply_markup=ReplyKeyboardRemove())
+
+
+async def set_geo(message: Message):
+    if message.chat.type != 'private':
+        await message.bot.send_message(message.from_user.id, 'Поделись геолокой, она явно не сольется в ФСБ', reply_markup=get_keyboard())
+        return
+    await message.reply('Поделись геолокой, она явно не сольется в ФСБ', reply_markup=get_keyboard())
+
+
 def register(dp):
     dp.register_message_handler(weather, commands=['w', 'weather'])
+    dp.register_message_handler(set_geo, commands=['weather_geo'])
+    dp.register_message_handler(handle_location, content_types=['location'])
