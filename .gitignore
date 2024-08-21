@@ -143,3 +143,5 @@ cython_debug/
 secret_chat/config.py
 ls.db
 /modeus/config.py
+/open_ai/config.py
+/plots/

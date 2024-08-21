@@ -6,7 +6,7 @@ from aiogram.types import Message, ChatMemberUpdated
 from aiogram.utils.exceptions import MessageToDeleteNotFound, MessageCantBeDeleted
 from asyncio import sleep
 
-from database import Db
+from database.db import Db
 
 
 class StickerFilter:

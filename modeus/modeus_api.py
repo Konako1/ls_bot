@@ -1,7 +1,6 @@
 import asyncio
 import datetime
 from asyncio import create_task, Task
-from types import TracebackType
 from typing import Optional, Any
 
 import httpx

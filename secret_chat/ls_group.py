@@ -16,13 +16,13 @@ from aiogram.types import Message, ContentTypes, InputFile, ChatMemberUpdated, C
 from aiogram.utils.exceptions import CantRestrictChatOwner, UserIsAnAdministratorOfTheChat, CantRestrictSelf, \
     InvalidHTTPUrlContent
 
+from database.db import Db
 from modeus.modeus_api import ModeusApi
-from secret_chat import mc_server
 from secret_chat.config import users, ls_group_id, test_group_id, frames_dir
 from datetime import datetime
 from utils import StickerFilter, nice_pfp_filter, message_sender, somebody_joined, somebody_left, convert
 from asyncio import create_task, sleep
-from database import Db, StatType, SilenceInfo
+from database.class_models import StatType, SilenceInfo
 
 import re
 import random
@@ -194,7 +194,6 @@ async def be_bra(message: Message):
 
 async def server_status(message: Message):
     text = 'Статус сервера: '
-    is_online = await mc_server.is_server_open()
     text += 'Online' if is_online else 'Offline'
     await message.reply(text)
 
@@ -757,5 +756,5 @@ def setup(dp: Dispatcher):
     dp.register_chat_member_handler(novichok, somebody_joined, chat_id=ls_group_id)
     dp.register_chat_member_handler(uzhe_smesharik, somebody_left, chat_id=ls_group_id)
 
-    dp.register_message_handler(forwarded_replayer, content_types=ContentTypes.ANY, chat_id=ls_group_id)
+    #dp.register_message_handler(forwarded_replayer, content_types=ContentTypes.ANY, chat_id=ls_group_id)
     dp.register_message_handler(furry_reply_detector, content_types=ContentTypes.ANY, chat_id=ls_group_id)
