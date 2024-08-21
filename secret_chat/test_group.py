@@ -1,10 +1,11 @@
 from aiogram import Dispatcher
 from aiogram.types import Message, InputFile, MediaGroup
 
+from database.class_models import StatType
 from secret_chat.config import ls_group_id, test_group_id, frames_dir
 from random import randint
 from asyncio import create_task, sleep
-from database import Db, StatType
+from database.db import Db
 from dataclasses import dataclass
 
 

@@ -2,7 +2,8 @@ import random
 from typing import Dict
 
 import vk_api
-from database import Db
+from database.class_models import StatType, StickerInfo
+from database.db import Db
 from utils import delayed_delete
 from secret_chat.simple_math import math
 from secret_chat.test_group import get_say_statistics, get_num_as_pow
@@ -14,7 +15,6 @@ from aiogram.utils.callback_data import CallbackData
 from secret_chat.config import test_group_id
 from asyncio import create_task
 from utils import StickerFilter
-from database import StatType, StickerInfo
 
 vk = vk_api.Vk()
 

@@ -1,6 +1,4 @@
 import random
-import json
-import time
 from dataclasses import dataclass
 
 from secret_chat.config import ls_group_id

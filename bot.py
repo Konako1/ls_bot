@@ -3,15 +3,17 @@ from datetime import datetime
 
 from aiogram import Dispatcher, Bot
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.types import BotCommand, AllowedUpdates
+from aiogram.types import BotCommand
 from aiogram.utils.exceptions import MessageNotModified
 
 import handlers
+import open_ai.handle
+from database import migrations, db
 from handlers import weather
 from modeus.modeus_middleware import ModeusMiddleware
 from modeus.modeus_api import ModeusApi
 from secret_chat import ls_group, config, test_group
-from ls import tg_ls, pings, schedule, seven_tv
+from ls import tg_ls, pings, schedule, seven_tv, replicate_model
 
 storage = MemoryStorage()
 bot = Bot(config.TG_TOKEN, parse_mode='HTML')
@@ -62,15 +64,19 @@ async def setup_middlewares():
 def register():
     schedule.setup(dp)
     handlers.register_all(dp)
+    open_ai.handle.setup(dp)
     tg_ls.setup(dp)
     test_group.setup(dp)
     seven_tv.setup(dp)
+    replicate_model.setup(dp)
     pings.setup(dp)
+
     ls_group.setup(dp)
 
 
 async def main():
     register()
+    await migrations.migrate(db.connection)
     await setup_middlewares()
     if datetime.now().hour == 8 or datetime.now().hour == 7:
         await bot.send_message(text=await weather.get_weather_message('Tyumen'), chat_id=config.ls_group_id)

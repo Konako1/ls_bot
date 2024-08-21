@@ -3,7 +3,7 @@ import datetime
 from aiogram import Dispatcher
 from aiogram.types import Message
 
-from database import Db
+from database.db import Db
 from modeus.modeus_api import ModeusApi
 from modeus.utils import user_filter, prepare_request, fc_filter, \
     format_event_final_text, day_fio_split

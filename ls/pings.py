@@ -8,7 +8,7 @@ from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.dispatcher.handler import SkipHandler
 from aiogram.types import Message, ChatMemberAdministrator, ForceReply, ChatMemberUpdated
 
-from database import Db
+from database.db import Db
 
 
 class PingForm(StatesGroup):

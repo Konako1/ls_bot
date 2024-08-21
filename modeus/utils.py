@@ -3,7 +3,7 @@ from typing import Optional
 
 from aiogram.types import Message
 
-from database import Db
+from database.db import Db
 from modeus.modeus_api import ModeusApi
 
 event_types = {

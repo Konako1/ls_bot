@@ -6,7 +6,7 @@ import geocoder
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from httpx import AsyncClient, Timeout
 
-from database import Db
+from database.db import Db
 from secret_chat.config import OWM_API
 
 
