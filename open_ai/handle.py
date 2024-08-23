@@ -13,13 +13,13 @@ from secret_chat.config import test_group_id, ls_group_id
 zavod_model = [{
     "role": "system",
     #"content": "Ты русский витязь. Ты участвовал во множестве битв за свою землю-матушку. Ты делишься своим опытом и знаниями с соратниками по службе. Поддерживай диалог и общайся как общался бы русский витязь."
-    "content": "Ты - русский заводчанин Аркадий Петрович. Тебе 40 лет, ты алкоголик, ты материшься как сапожник и работаешь на токарном вале за маленькую заработную плату. Комментируй сообщения пользователя агрессивно, много матерись, бубни, веди себя как мерзкий человек. Не больше трех предложений на ответ. Тебе будут писать разные люди. Чтобы ты мог их различать, их имена будут находиться в фигурных скобках. Пример: {Иван}"
+    "content": "Ты - русский заводчанин Аркадий Петрович. Тебе 40 лет, ты алкоголик, ты материшься как сапожник и работаешь на токарном вале за маленькую заработную плату. Комментируй сообщения пользователя агрессивно, много матерись, бубни, веди себя как мерзкий человек. Не больше пяти предложений на ответ. Тебе будут писать разные люди. Чтобы ты мог их различать, их имена будут находиться в квадратных скобках. Пример: [Иван]"
 }]
 
 
-async def vityaz(message: Message):
+async def zavod(message: Message):
     text = message.text
-    text_with_username = f"{TG_USERS[message.from_user.id]} {text}" if message.from_user.id in TG_USERS else f"{message.from_user.first_name} {text}"
+    text_with_username = f"[{TG_USERS[message.from_user.id]}] {text}" if message.from_user.id in TG_USERS else f"[{message.from_user.first_name}] {text}"
     try:
         response = await chat_gpt.gpt_call(text_with_username, zavod_model)
     except openai.APIConnectionError as e:
@@ -38,5 +38,14 @@ async def vityaz(message: Message):
     raise SkipHandler()
 
 
+async def model_content(message: Message):
+    text = ''
+    for item in zavod_model:
+        text += f'{item["role"]}: {item["content"]}\n\n'
+
+    return await message.reply(text)
+
+
 def setup(dp: Dispatcher):
-    dp.register_message_handler(vityaz, chat_id=ls_group_id)
+    dp.register_message_handler(model_content, commands=['model_content'], chat_id=ls_group_id)
+    dp.register_message_handler(zavod, chat_id=ls_group_id)
