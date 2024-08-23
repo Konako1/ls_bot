@@ -16,7 +16,7 @@ async def gpt_call(user_message: str, model: list[dict[str, str]]) -> Optional[s
     if rand != 0:
         return None
     completion = await client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4",
         messages=model,
         timeout=5
     )

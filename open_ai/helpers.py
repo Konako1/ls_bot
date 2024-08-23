@@ -25,5 +25,5 @@ def remove_rows_from_model(model: list[dict[str, str]], rows: int):
     for i in range(rows):
         if rows == 0:
             break
-        model.pop(0)
+        model.pop(1)
         rows -= 1

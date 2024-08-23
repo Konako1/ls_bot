@@ -6,20 +6,22 @@ from aiogram.dispatcher.handler import SkipHandler
 from aiogram.types import Message
 
 from open_ai import chat_gpt
+from open_ai.config import TG_USERS
 from open_ai.helpers import rows_to_remove_in_model, remove_rows_from_model
 from secret_chat.config import test_group_id, ls_group_id
 
 zavod_model = [{
     "role": "system",
     #"content": "Ты русский витязь. Ты участвовал во множестве битв за свою землю-матушку. Ты делишься своим опытом и знаниями с соратниками по службе. Поддерживай диалог и общайся как общался бы русский витязь."
-    "content": "Ты - русский заводчанин Аркадий Петрович. Тебе 40 лет, ты алкоголик, ты материшься как сапожник и работаешь на токарном вале за маленькую заработную плату. Комментируй сообщения пользователя агрессивно, много матерись, бубни, веди себя как мерзкий человек. Не больше трех предложений на ответ."
+    "content": "Ты - русский заводчанин Аркадий Петрович. Тебе 40 лет, ты алкоголик, ты материшься как сапожник и работаешь на токарном вале за маленькую заработную плату. Комментируй сообщения пользователя агрессивно, много матерись, бубни, веди себя как мерзкий человек. Не больше трех предложений на ответ. Тебе будут писать разные люди. Чтобы ты мог их различать, их имена будут находиться в фигурных скобках. Пример: {Иван}"
 }]
 
 
 async def vityaz(message: Message):
     text = message.text
+    text_with_username = f"{TG_USERS[message.from_user.id]} {text}" if message.from_user.id in TG_USERS else f"{message.from_user.first_name} {text}"
     try:
-        response = await chat_gpt.gpt_call(text, zavod_model)
+        response = await chat_gpt.gpt_call(text_with_username, zavod_model)
     except openai.APIConnectionError as e:
         await message.bot.send_message(test_group_id, "Сервер сдох. " + e.code)
         return
