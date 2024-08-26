@@ -12,7 +12,7 @@ client = AsyncOpenAI(
 
 async def gpt_call(user_message: str, model: list[dict[str, str]]) -> Optional[str]:
     model.append({"role": "user", "content": user_message})
-    rand = random.randrange(0, 33)
+    rand = random.randrange(0, config.CALL_PROBABILITY)
     if rand != 0:
         return None
     completion = await client.chat.completions.create(
