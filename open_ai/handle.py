@@ -80,8 +80,8 @@ async def commands(message: Message):
 
 
 def setup(dp: Dispatcher):
-    dp.register_message_handler(model_content, commands=['model_content', 'mc'], chat_id=test_group_id)
-    dp.register_message_handler(change_probability, commands=['change_probability', 'cp'], chat_id=test_group_id)
+    dp.register_message_handler(model_content, commands=['model_content', 'mc'], chat_id=ls_group_id)
+    dp.register_message_handler(change_probability, commands=['change_probability', 'cp'], chat_id=ls_group_id)
     dp.register_message_handler(change_tokens, commands=['change_tokens', 'ct'], chat_id=ls_group_id)
     dp.register_message_handler(commands, commands=['ai_commands', 'aic'], chat_id=ls_group_id)
-    dp.register_message_handler(zavod, chat_id=test_group_id)
+    dp.register_message_handler(zavod, chat_id=ls_group_id)
