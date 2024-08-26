@@ -19,10 +19,7 @@ class Config:
         Config.config.read('open_ai/config.ini', encoding='utf-8')
 
         path = variable.split('.')
-        if len(path) == 1:
-            Config.config[variable] = value
-        else:
-            Config.config[path[0]][path[1]] = value
+        Config.config[path[0]][path[1]] = str(value)
 
-        with open('config.ini', 'w') as configfile:
+        with open('open_ai/config.ini', 'w', encoding='utf-8') as configfile:
             Config.config.write(configfile)

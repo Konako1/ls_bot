@@ -50,21 +50,24 @@ async def model_content(message: Message):
 async def change_probability(message: Message):
     val = message.get_args()
     try:
-        Config.write('DEFAULTS.CALL_PROBABILITY', int(val))
+        val = int(val)
     except ValueError:
         await message.reply('Значение должно быть целым числом')
         return
-    await message.reply('Значение вероятности установлено на 1/' + val)
+    Config.write('DEFAULTS.CALL_PROBABILITY', val)
+    await message.reply(f'Значение вероятности установлено на 1/{val}')
 
 
 async def change_tokens(message: Message):
     val = message.get_args()
     try:
-        Config.write('DEFAULTS.TOKENS_PER_CONVERSATION', int(val))
+        val = int(val)
     except ValueError:
         await message.reply('Значение должно быть целым числом')
         return
-    await message.reply('Максимальное значение токенов установлено на ' + val)
+
+    Config.write('DEFAULTS.TOKENS_PER_CONVERSATION', val)
+    await message.reply(f'Максимальное значение токенов установлено на {val}')
 
 
 async def commands(message: Message):
@@ -77,8 +80,8 @@ async def commands(message: Message):
 
 
 def setup(dp: Dispatcher):
-    dp.register_message_handler(model_content, commands=['model_content', 'mc'], chat_id=ls_group_id)
-    dp.register_message_handler(change_probability, commands=['change_probability', 'cp'], chat_id=ls_group_id)
+    dp.register_message_handler(model_content, commands=['model_content', 'mc'], chat_id=test_group_id)
+    dp.register_message_handler(change_probability, commands=['change_probability', 'cp'], chat_id=test_group_id)
     dp.register_message_handler(change_tokens, commands=['change_tokens', 'ct'], chat_id=ls_group_id)
     dp.register_message_handler(commands, commands=['ai_commands', 'aic'], chat_id=ls_group_id)
-    dp.register_message_handler(zavod, chat_id=ls_group_id)
+    dp.register_message_handler(zavod, chat_id=test_group_id)
