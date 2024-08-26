@@ -19,8 +19,8 @@ zavod_model = [{
 
 async def zavod(message: Message):
     text = message.text
-    TG_USERS = Config.read('TG_USERS')
-    text_with_username = f"[{TG_USERS[message.from_user.id]}] {text}" if message.from_user.id in TG_USERS else f"[{message.from_user.first_name}] {text}"
+    TG_USERS = Config.read('USERS')
+    text_with_username = f"[{TG_USERS[str(message.from_user.id)]}] {text}" if str(message.from_user.id) in TG_USERS else f"[{message.from_user.first_name}] {text}"
     try:
         response = await chat_gpt.gpt_call(text_with_username, zavod_model)
     except openai.APIConnectionError as e:
@@ -52,7 +52,7 @@ async def change_probability(message: Message):
     if val != type(int):
         await message.reply('Значение должно быть целым числом')
         return
-    Config.write('CALL_PROBABILITY', val)
+    Config.write('DEFAULTS.CALL_PROBABILITY', val)
     await message.reply('Значение вероятности установлено на 1/' + val)
 
 
@@ -61,7 +61,7 @@ async def change_tokens(message: Message):
     if val != type(int):
         await message.reply('Значение должно быть целым числом')
         return
-    Config.write('TOKENS_PER_CONVERSATION', val)
+    Config.write('DEFAULTS.TOKENS_PER_CONVERSATION', val)
     await message.reply('Максимальное значение токенов установлено на ' + val)
 
 
