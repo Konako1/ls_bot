@@ -1,18 +1,19 @@
+import configparser
 import random
 from typing import Optional
 
 from openai import AsyncOpenAI
 
-from open_ai import config
+from open_ai.config import Config
 
 client = AsyncOpenAI(
-    api_key=config.OPEN_AI_API_KEY,
+    api_key=Config.read('OPEN_AI_API_KEY'),
 )
 
 
 async def gpt_call(user_message: str, model: list[dict[str, str]]) -> Optional[str]:
     model.append({"role": "user", "content": user_message})
-    rand = random.randrange(0, config.CALL_PROBABILITY)
+    rand = random.randrange(0, Config.read('CALL_PROBABILITY'))
     if rand != 0:
         return None
     completion = await client.chat.completions.create(

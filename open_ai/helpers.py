@@ -1,4 +1,4 @@
-from open_ai import config
+from open_ai.config import Config
 
 
 def rows_to_remove_in_model(model: list[dict[str, str]]) -> int:
@@ -9,7 +9,7 @@ def rows_to_remove_in_model(model: list[dict[str, str]]) -> int:
         content_size_list.append(content_size)
         overall_content_size += content_size
 
-    size_diff = overall_content_size - config.TOKENS_PER_CONVERSATION
+    size_diff = overall_content_size - Config.read('TOKENS_PER_CONVERSATION')
     rows_to_remove = 0
     for content_size in content_size_list:
         if size_diff > 0:
