@@ -48,20 +48,22 @@ async def model_content(message: Message):
 
 
 async def change_probability(message: Message):
-    val = message.text
-    if val != type(int):
+    val = message.get_args()
+    try:
+        Config.write('DEFAULTS.CALL_PROBABILITY', int(val))
+    except ValueError:
         await message.reply('Значение должно быть целым числом')
         return
-    Config.write('DEFAULTS.CALL_PROBABILITY', val)
     await message.reply('Значение вероятности установлено на 1/' + val)
 
 
 async def change_tokens(message: Message):
-    val = message.text
-    if val != type(int):
+    val = message.get_args()
+    try:
+        Config.write('DEFAULTS.TOKENS_PER_CONVERSATION', int(val))
+    except ValueError:
         await message.reply('Значение должно быть целым числом')
         return
-    Config.write('DEFAULTS.TOKENS_PER_CONVERSATION', val)
     await message.reply('Максимальное значение токенов установлено на ' + val)
 
 
