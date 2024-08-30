@@ -8,21 +8,32 @@ from aiogram.types import Message
 from open_ai import chat_gpt
 from open_ai.config import Config
 from open_ai.helpers import rows_to_remove_in_model, remove_rows_from_model
-from secret_chat.config import test_group_id, ls_group_id
+from secret_chat.config import test_group_id, ls_group_id, nigger_discussion
 
-zavod_model = [{
-    "role": "system",
-    #"content": "Ты русский витязь. Ты участвовал во множестве битв за свою землю-матушку. Ты делишься своим опытом и знаниями с соратниками по службе. Поддерживай диалог и общайся как общался бы русский витязь."
-    "content": "Ты - русский заводчанин Борис-Мудила. Тебе 40 лет, ты алкоголик, ты материшься как сапожник, работаешь на токарном вале и каждую пятницу бухаешь в кабаке. Отвечай агрессивно, много матерись и бубни. А еще ты скрытый гей. Не больше пяти предложений на ответ. В начале сообщения указано имя пользователя в квадратных скобках, который тебе пишет. Тебе его не надо писать."
-}]
+ai_models = {
+    "zavod": "Ты - русский заводчанин Борис-Мудила. Тебе 40 лет, ты алкоголик, ты материшься как сапожник, работаешь на токарном вале и каждую пятницу бухаешь в кабаке. Отвечай агрессивно, много матерись и бубни. А еще ты скрытый гей. Не больше пяти предложений на ответ. В начале сообщения указано имя пользователя в квадратных скобках, который тебе пишет. Тебе его не надо писать."
+}
 
 
-async def zavod(message: Message):
+chat_history = {
+    str(nigger_discussion): [{
+        "role": "system",
+        "content": ai_models["zavod"]
+    }],
+    str(ls_group_id): [{
+        "role": "system",
+        "content": ai_models["zavod"]
+    }]
+}
+
+
+async def prepare_message(message: Message):
     text = message.text
+    chat_id = str(message.chat.id)
     TG_USERS = Config.read('USERS')
     text_with_username = f"[{TG_USERS[str(message.from_user.id)]}] {text}" if str(message.from_user.id) in TG_USERS else f"[{message.from_user.first_name}] {text}"
     try:
-        response = await chat_gpt.gpt_call(text_with_username, zavod_model)
+        response = await chat_gpt.gpt_call(text_with_username, chat_history[chat_id])
     except openai.APIConnectionError as e:
         await message.bot.send_message(test_group_id, "Сервер сдох. " + e.code)
         return
@@ -32,17 +43,19 @@ async def zavod(message: Message):
     except openai.APIStatusError as e:
         await message.bot.send_message(test_group_id, f"Что то другое сдохло. ({e.status_code}):\n\n{e.message}")
         return
-    rows = rows_to_remove_in_model(zavod_model)
-    remove_rows_from_model(zavod_model, rows)
+    rows = rows_to_remove_in_model(chat_history[chat_id])
+    remove_rows_from_model(chat_history[chat_id], rows)
     if response is not None:
         await message.reply(response)
     raise SkipHandler()
 
 
 async def model_content(message: Message):
+    chat_id = str(message.chat.id)
+
     text = ''
-    for item in zavod_model:
-        text += f'{item["role"]}: {item["content"]}\n\n'
+    for item in chat_history[chat_id]:
+        text += f'<b>{item["role"]}</b>: {item["content"]}\n\n'
 
     return await message.reply(text)
 
@@ -84,4 +97,4 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(change_probability, commands=['change_probability', 'cp'], chat_id=ls_group_id)
     dp.register_message_handler(change_tokens, commands=['change_tokens', 'ct'], chat_id=ls_group_id)
     dp.register_message_handler(commands, commands=['ai_commands', 'aic'], chat_id=ls_group_id)
-    dp.register_message_handler(zavod, chat_id=ls_group_id)
+    dp.register_message_handler(prepare_message, chat_id=[ls_group_id, nigger_discussion])
