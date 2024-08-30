@@ -35,7 +35,7 @@ async def prepare_message(message: Message):
     try:
         response = await chat_gpt.gpt_call(text_with_username, chat_history[chat_id])
     except openai.APIConnectionError as e:
-        await message.bot.send_message(test_group_id, "Сервер сдох. " + e.code)
+        await message.bot.send_message(test_group_id, "Сервер сдох. " + e.message)
         return
     except openai.RateLimitError as e:
         await message.bot.send_message(test_group_id, "Уперся в лимит. " + e.message)
