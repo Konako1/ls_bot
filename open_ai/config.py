@@ -21,7 +21,7 @@ class Config:
         Config.config.read(Config.config_path, encoding='utf-8')
 
         path = variable.split('.')
-        Config.config[path[0]][path[1]] = str(value)
+        Config.config.set(path[0], path[1], str(value))
 
-        with open(Config.config_path, 'w', encoding='utf-8') as configfile:
+        with open(Config.config_path, 'w+', encoding='utf-8') as configfile:
             Config.config.write(configfile)
