@@ -28,4 +28,4 @@ async def gpt_call(user_message: str, model: list[dict[str, str]]) -> Optional[s
     response = '' if content is None else str(content)
     model.append({"role": "assistant", "content": response})
 
-    return f"{response}\n\n{tokens}"
+    return f"{response}"
