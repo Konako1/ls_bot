@@ -475,7 +475,7 @@ async def baza(message: Message):
     raise SkipHandler()
 
 async def examenator(message: Message):
-    rand = random.randint(0, 100)
+    rand = random.randint(0, 1000)
     
     if rand == 0:
         reply = f'{message.from_user.username}, экзамен продолжается.\nВаш ответ:'
