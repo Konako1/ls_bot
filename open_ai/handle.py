@@ -83,20 +83,12 @@ async def change_tokens(message: Message):
     await message.reply(f'Максимальное значение токенов установлено на {val}')
 
 
-async def config_values(message: Message):
-    tokens = Config.read('DEFAULTS.TOKENS_PER_CONVERSATION')
-    prob = Config.read('DEFAULTS.CALL_PROBABILITY')
-    await message.reply(f'Макс. кол-во токенов в запросе: {tokens}\n'
-                        f'Вероятность ответа: {prob}')
-
-
 async def commands(message: Message):
     await message.reply(
         'Команды для работы с модулем гптшки:\n\n'
         '/mc /model_content - показывает контент, который отправится при запросе\n'
         '/cp /change_probability {число} - устанавливает вероятность отправки запроса на: 1/{число}\n'
-        '/ct /change_tokens {число} - устанавливает максимальное количество токенов в запросе\n'
-        '/aicfg /ai_config - посмотреть значения в конфиге\n'
+        '/ct /change_tokens {число} - устанавливает максимальное количество токенов в запросе'
     )
 
 
@@ -104,6 +96,5 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(model_content, commands=['model_content', 'mc'], chat_id=ls_group_id)
     dp.register_message_handler(change_probability, commands=['change_probability', 'cp'], chat_id=ls_group_id)
     dp.register_message_handler(change_tokens, commands=['change_tokens', 'ct'], chat_id=ls_group_id)
-    dp.register_message_handler(config_values, commands=['aicfg', 'ai_config'], chat_id=ls_group_id)
     dp.register_message_handler(commands, commands=['ai_commands', 'aic'], chat_id=ls_group_id)
     dp.register_message_handler(prepare_message, chat_id=[ls_group_id, nigger_discussion])
