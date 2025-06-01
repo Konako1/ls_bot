@@ -121,7 +121,7 @@ async def add_user_to_command(message: Message, state: FSMContext):
 
 
 async def add_user_to_command_from_reply(message: Message):
-    command = message.get_args()
+    command = message.get_args().lower()
     if not await is_ping_command_valid(command, message):
         return
     result = await add_user_in_command(message, command, message.reply_to_message.from_user)
@@ -249,7 +249,7 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(delete_ping_command, state=PingForm.delete_ping_command, content_types=['text'])
     dp.register_message_handler(add_user_to_command_handler, commands=['add_me'])
     dp.register_message_handler(add_user_to_command, state=PingForm.add_user_to_ping_command, content_types=['text'])
-    dp.register_message_handler(add_user_to_command_from_reply, commands=['add_me'])
+    dp.register_message_handler(add_user_to_command_from_reply, commands=['add_reply'])
     dp.register_message_handler(delete_user_from_command_handler, commands=['delete_me'])
     dp.register_message_handler(delete_user_from_command, state=PingForm.delete_user_from_ping_command, content_types=['text'])
     dp.register_message_handler(get_available_commands, commands=['ping_commands'])
