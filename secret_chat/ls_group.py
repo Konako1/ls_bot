@@ -474,6 +474,16 @@ async def baza(message: Message):
         )
     raise SkipHandler()
 
+async def examenator(message: Message):
+    rand = random.randint(0, 1000)
+    
+    if rand == 0:
+        reply = f'{message.from_user.username}, экзамен продолжается.\nВаш ответ:'
+
+        await message.reply(
+            reply
+        )
+    raise SkipHandler()
 
 async def wysi_correction():
     async with Db() as db:
@@ -754,6 +764,7 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(i_fucking_hate_furries, commands=['furry', 'f'], chat_id=ls_group_id)
     dp.register_inline_handler(i_fucking_hate_furries_autocomplete)
     dp.register_message_handler(baza, chat_id=ls_group_id)
+    dp.register_message_handler(examenator, chat_id=ls_group_id)
     dp.register_chat_member_handler(novichok, somebody_joined, chat_id=ls_group_id)
     dp.register_chat_member_handler(uzhe_smesharik, somebody_left, chat_id=ls_group_id)
 
