@@ -169,6 +169,7 @@ async def ping_users(message: Message):
         if counter == 5:
             await message.reply(msg)
             msg = ''
+            counter = 0
     await message.reply(msg)
 
 
