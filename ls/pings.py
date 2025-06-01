@@ -6,7 +6,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.dispatcher.handler import SkipHandler
-from aiogram.types import Message, ChatMemberAdministrator, ForceReply, ChatMemberUpdated
+from aiogram.types import Message, ChatMemberAdministrator, ForceReply, ChatMemberUpdated, ChatMemberOwner
 
 from database.db import Db
 
@@ -43,7 +43,7 @@ async def is_ping_command_valid(command: str, message: Message) -> bool:
 
 async def create_ping_command_handler(message: Message, state: FSMContext):
     member = await message.chat.get_member(message.from_user.id)
-    if not isinstance(member, ChatMemberAdministrator):
+    if not (isinstance(member, ChatMemberAdministrator) or isinstance(member, ChatMemberOwner)):
         await message.reply('Эта команда только для админов.')
         return
     command_list = await get_command_list(chat_id=message.chat.id)
@@ -64,7 +64,7 @@ async def create_ping_command(message: Message, state: FSMContext):
 
 async def delete_ping_command_handler(message: Message, state: FSMContext):
     member = await message.chat.get_member(message.from_user.id)
-    if not isinstance(member, ChatMemberAdministrator):
+    if not (isinstance(member, ChatMemberAdministrator) or isinstance(member, ChatMemberOwner)):
         await message.reply('Эта команда только для админов.')
         return
     command_list = await get_command_list(message.chat.id)
@@ -162,8 +162,13 @@ async def ping_users(message: Message):
         await message.reply('В команде нет ни одного пользователя.')
         return
     msg = ''
+    counter = 0
     for username in usernames:
+        counter += 1
         msg += f'@{username[0]} '
+        if counter == 5:
+            await message.reply(msg)
+            msg = ''
     await message.reply(msg)
 
 
