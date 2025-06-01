@@ -6,7 +6,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.dispatcher.handler import SkipHandler
-from aiogram.types import Message, ChatMemberAdministrator, ForceReply, ChatMemberUpdated, ChatMemberOwner
+from aiogram.types import Message, ChatMemberAdministrator, ForceReply, ChatMemberUpdated, ChatMemberOwner, User
 
 from database.db import Db
 
@@ -18,14 +18,18 @@ class PingForm(StatesGroup):
     delete_user_from_ping_command = State()
 
 
-async def add_user_in_command(message: Message, command: str) -> Optional[bool]:
+async def add_user_from_message_in_command(message: Message, command: str) -> Optional[bool]:
+    return await add_user_in_command(message, command, message.from_user)
+
+
+async def add_user_in_command(message: Message, command: str, user: User) -> Optional[bool]:
     async with Db() as db:
         command_id = await db.get_ping_command_id(message.chat.id, command)
         if command_id == -1:
             await message.reply('Такой команды не существует.')
             return None
-        await db.add_ping_user(message.from_user.id, message.from_user.username)
-        result = await db.bind_command_user(message.from_user.id, command_id)
+        await db.add_ping_user(user.id, user.username)
+        result = await db.bind_command_user(user.id, command_id)
     if result is False:
         await message.reply('Пользователь уже был добавлен.')
         return False
@@ -93,7 +97,7 @@ async def add_user_to_command_handler(message: Message, state: FSMContext):
         command_list = await db.get_all_ping_commands(message.chat.id)
     for command, _ in command_list:
         if args == command:
-            result = await add_user_in_command(message, args)
+            result = await add_user_from_message_in_command(message, args)
             return
     command_list = await get_command_list(message.chat.id)
     if command_list is None:
@@ -110,10 +114,19 @@ async def add_user_to_command(message: Message, state: FSMContext):
     command = message.text.lower()
     if not await is_ping_command_valid(command, message):
         return
-    result = await add_user_in_command(message, command)
+    result = await add_user_from_message_in_command(message, command)
     if result is None:
         return
     await state.reset_state()
+
+
+async def add_user_to_command_from_reply(message: Message):
+    command = message.get_args()
+    if not await is_ping_command_valid(command, message):
+        return
+    result = await add_user_in_command(message, command, message.reply_to_message.from_user)
+    if result is None:
+        return
 
 
 async def delete_user_from_command_handler(message: Message, state: FSMContext):
@@ -236,6 +249,7 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(delete_ping_command, state=PingForm.delete_ping_command, content_types=['text'])
     dp.register_message_handler(add_user_to_command_handler, commands=['add_me'])
     dp.register_message_handler(add_user_to_command, state=PingForm.add_user_to_ping_command, content_types=['text'])
+    dp.register_message_handler(add_user_to_command_from_reply, commands=['add_me'])
     dp.register_message_handler(delete_user_from_command_handler, commands=['delete_me'])
     dp.register_message_handler(delete_user_from_command, state=PingForm.delete_user_from_ping_command, content_types=['text'])
     dp.register_message_handler(get_available_commands, commands=['ping_commands'])
